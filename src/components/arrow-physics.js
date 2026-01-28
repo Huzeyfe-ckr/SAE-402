@@ -1,166 +1,172 @@
 /**
- * Composant arrow-physics pour A-Frame avec aframe-physics-system
- * Applique une impulsion initiale basée sur la tension de l'arc
- * Gère les collisions et le plantage dans les surfaces
+ * Composant arrow-physics ULTRA-SIMPLIFIÉ pour A-Frame
+ * Flèche qui part en ligne droite le long du raycast
+ * Aucune physique, juste un mouvement rectiligne
  */
 
 AFRAME.registerComponent('arrow-physics', {
   schema: {
-    tension: { type: 'number', default: 1.0 },
-    speed: { type: 'number', default: 25 },
-    windForce: { type: 'vec3', default: { x: 0, y: 0, z: 0 } }
+    speed: { type: 'number', default: 25 }
   },
 
   init: function () {
     this.hasCollided = false
     this.lifetime = 0
-    this.maxLifetime = 15000 // 15 secondes max
+    this.maxLifetime = 8000 // 15 secondes max
     
-    // Attendre que le corps physique soit initialisé
-    this.el.addEventListener('body-loaded', () => {
-      this.applyInitialImpulse()
-      // Activer CCD pour éviter le tunneling (A-Frame 1.7+ avec Ammo.js)
-      if (this.el.body && this.el.body.setCcdMotionThreshold) {
-        this.el.body.setCcdMotionThreshold(0.01)
-        this.el.body.setCcdSweptSphereRadius(0.005)
-        console.log('✅ CCD activé pour la flèche (anti-tunneling)')
-      }
-    })
-
-    // Gérer les collisions
-    this.el.addEventListener('collide', this.onCollide.bind(this))
+    // Direction fixe de la flèche (ne change JAMAIS)
+    this.direction = new THREE.Vector3(0, 0, -1)
+    this.direction.applyQuaternion(this.el.object3D.quaternion)
+    this.direction.normalize()
     
-    console.log('➡️ Physique de flèche activée (Ammo.js avec CCD)')
+    // Raycaster pour détecter les collisions
+    this.raycaster = new THREE.Raycaster()
+    
+    // Récupérer tous les objets de collision
+    this.collisionObjects = []
+    this.updateCollisionObjects()
+    
+    console.log('➡️ Flèche en ligne droite le long du raycast')
   },
 
-  applyInitialImpulse: function () {
-    const body = this.el.body
-    if (!body) {
-      console.warn('⚠️ Corps physique non trouvé')
-      return
-    }
-
-    // Calculer la direction de tir basée sur la rotation de la flèche
-    const direction = new THREE.Vector3(0, 0, -1)
-    direction.applyQuaternion(this.el.object3D.quaternion)
+  updateCollisionObjects: function () {
+    const scene = this.el.sceneEl
     
-    // Calculer la force basée sur la tension
-    const force = direction.multiplyScalar(this.data.speed * this.data.tension)
+    // Cibles uniquement
+    const targets = scene.querySelectorAll('[target-behavior]')
+    targets.forEach(target => {
+      if (target.object3D) {
+        this.collisionObjects.push({
+          object: target.object3D,
+          entity: target,
+          type: 'target'
+        })
+      }
+    })
     
-    // Appliquer l'impulsion (via Ammo.js)
-    const impulse = new Ammo.btVector3(force.x, force.y, force.z)
-    body.applyCentralImpulse(impulse)
-    Ammo.destroy(impulse)
+    // Meshes de la scène (planes, sols, environnement, etc.)
+    const sceneMeshes = scene.querySelectorAll('[geometry]')
+    sceneMeshes.forEach(mesh => {
+      if (mesh.object3D && mesh !== this.el && !mesh.hasAttribute('target-behavior')) {
+        this.collisionObjects.push({
+          object: mesh.object3D,
+          entity: mesh,
+          type: 'environment'
+        })
+      }
+    })
     
-    console.log(`🚀 Impulsion appliquée: ${force.length().toFixed(2)} m/s`)
+    console.log(`🎯 ${this.collisionObjects.length} objets de collision détectés`)
   },
 
   tick: function (time, deltaTime) {
+    if (this.hasCollided) return
+    
     this.lifetime += deltaTime
 
     // Supprimer la flèche après un certain temps
     if (this.lifetime > this.maxLifetime) {
-      this.el.parentNode.removeChild(this.el)
+      this.removeArrow()
       return
     }
 
-    // Si la flèche n'a pas encore collisionné, appliquer le vent
-    if (!this.hasCollided && this.el.body) {
-      this.applyWind(deltaTime)
-      this.alignWithVelocity()
-    }
-  },
-
-  applyWind: function (deltaTime) {
-    if (!this.el.body) return
-    
     const dt = deltaTime / 1000
-    const windForce = new Ammo.btVector3(
-      this.data.windForce.x * dt,
-      this.data.windForce.y * dt,
-      this.data.windForce.z * dt
-    )
     
-    this.el.body.applyCentralForce(windForce)
-    Ammo.destroy(windForce)
-  },
-
-  alignWithVelocity: function () {
-    // Orienter la flèche dans la direction du mouvement
-    if (!this.el.body) return
+    // Calculer le déplacement en ligne droite
+    const displacement = this.direction.clone().multiplyScalar(this.data.speed * dt)
     
-    const velocity = this.el.body.getLinearVelocity()
-    const vel = new THREE.Vector3(velocity.x(), velocity.y(), velocity.z())
+    // Raycast dans la direction du mouvement
+    const currentPos = this.el.object3D.position.clone()
+    const rayDistance = displacement.length()
     
-    if (vel.length() > 0.1) {
-      const direction = vel.normalize()
-      this.el.object3D.quaternion.setFromUnitVectors(
-        new THREE.Vector3(0, 1, 0),
-        direction
-      )
+    this.raycaster.set(currentPos, this.direction)
+    this.raycaster.far = rayDistance * 1.2
+    
+    // Détecter les intersections
+    const allObjects = this.collisionObjects.map(obj => obj.object)
+    const intersects = this.raycaster.intersectObjects(allObjects, true)
+    
+    if (intersects.length > 0 && intersects[0].distance <= rayDistance) {
+      // Collision détectée !
+      this.handleCollision(intersects[0])
+    } else {
+      // Pas de collision, avancer en ligne droite
+      this.el.object3D.position.add(displacement)
     }
   },
 
-  onCollide: function (evt) {
+  handleCollision: function (intersection) {
     if (this.hasCollided) return
-    
-    const targetEl = evt.detail.body.el
     this.hasCollided = true
     
-    console.log(`💥 Collision détectée avec: ${targetEl.id || 'surface'}`)
-
-    // Récupérer le point d'impact
-    const impactPoint = this.el.object3D.position.clone()
+    const impactPoint = intersection.point
     
-    // Vérifier si c'est une cible
-    if (targetEl.hasAttribute('target-behavior')) {
-      const targetComponent = targetEl.components['target-behavior']
-      targetComponent.onArrowHit(this.el, impactPoint)
+    // Trouver l'entité touchée
+    let hitEntity = null
+    let hitType = 'environment'
+    
+    for (let collisionObj of this.collisionObjects) {
+      let current = intersection.object
+      while (current) {
+        if (current === collisionObj.object) {
+          hitEntity = collisionObj.entity
+          hitType = collisionObj.type
+          break
+        }
+        current = current.parent
+      }
+      if (hitEntity) break
     }
-
-    // Transformer la flèche en corps cinématique (elle se plante)
-    if (this.el.body) {
-      this.el.removeAttribute('dynamic-body')
-      this.el.setAttribute('static-body', {
-        shape: 'cylinder'
-      })
-      
-      // Figer la flèche à sa position actuelle
-      const currentPos = this.el.object3D.position
-      const currentRot = this.el.object3D.rotation
-      
-      setTimeout(() => {
-        this.el.setAttribute('position', `${currentPos.x} ${currentPos.y} ${currentPos.z}`)
-        this.el.setAttribute('rotation', `${currentRot.x * 180/Math.PI} ${currentRot.y * 180/Math.PI} ${currentRot.z * 180/Math.PI}`)
-      }, 50)
+    
+    console.log(`💥 Collision: ${hitType}`)
+    
+    // Si c'est une cible, appeler son composant
+    if (hitType === 'target' && hitEntity.components['target-behavior']) {
+      hitEntity.components['target-behavior'].onArrowHit(this.el, impactPoint)
     }
-
+    
+    // Planter la flèche à la position d'impact
+    this.el.object3D.position.copy(impactPoint)
+    
+    // Ajuster position pour que la flèche dépasse de la surface
+    if (intersection.face && intersection.face.normal) {
+      const offset = intersection.face.normal.clone().multiplyScalar(0.1)
+      this.el.object3D.position.add(offset)
+    }
+    
     // Retirer la flèche après 5 secondes
     setTimeout(() => {
-      if (this.el && this.el.parentNode) {
-        // Animation de disparition manuelle
-        let elapsed = 0
-        const duration = 500
-        const startScale = this.el.getAttribute('scale')
-        
-        const animateRemove = () => {
-          elapsed += 16
-          const progress = Math.min(elapsed / duration, 1)
-          const scale = startScale.x * (1 - progress)
-          this.el.setAttribute('scale', `${scale} ${scale} ${scale}`)
-          
-          if (progress < 1) {
-            requestAnimationFrame(animateRemove)
-          } else {
-            if (this.el && this.el.parentNode) {
-              this.el.parentNode.removeChild(this.el)
-            }
-          }
-        }
-        
-        animateRemove()
-      }
+      this.animateRemoval()
     }, 5000)
+  },
+
+  animateRemoval: function () {
+    if (!this.el || !this.el.parentNode) return
+    
+    let elapsed = 0
+    const duration = 500
+    const startScale = this.el.getAttribute('scale') || { x: 1, y: 1, z: 1 }
+    
+    const animate = () => {
+      elapsed += 16
+      const progress = Math.min(elapsed / duration, 1)
+      const scale = startScale.x * (1 - progress)
+      this.el.setAttribute('scale', `${scale} ${scale} ${scale}`)
+      
+      if (progress < 1) {
+        requestAnimationFrame(animate)
+      } else {
+        this.removeArrow()
+      }
+    }
+    
+    animate()
+  },
+
+  removeArrow: function () {
+    if (this.el && this.el.parentNode) {
+      this.el.parentNode.removeChild(this.el)
+    }
   }
 })
 

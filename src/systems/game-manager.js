@@ -87,6 +87,13 @@ AFRAME.registerSystem('game-manager', {
     
     target.id = targetId
     target.setAttribute('position', `${x} ${y} ${z}`)
+    
+    // Ajouter le corps physique AVANT le comportement
+    target.setAttribute('static-body', {
+      shape: 'cylinder',
+      cylinderAxis: 'z'
+    })
+    
     target.setAttribute('target-behavior', {
       points: points,
       hp: hp,
@@ -95,7 +102,7 @@ AFRAME.registerSystem('game-manager', {
     
     // Créer la géométrie de la cible avec taille variable
     target.innerHTML = `
-      <a-entity gltf-model="#target-model" scale="${scale} ${scale} ${scale}" animation-mixer="clip: NONE"></a-entity>
+      <a-entity gltf-model="#target-model" scale="${scale} ${scale} ${scale}"></a-entity>
     `
     
     this.el.appendChild(target)
