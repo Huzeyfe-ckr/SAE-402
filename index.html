@@ -117,16 +117,16 @@
       </a-entity>
       
       <!-- Caméra avec contrôles VR -->
-      <a-entity id="rig" position="0 1.6 0">
+      <a-entity id="rig" position="0 1.6 0" bow-draw-system>
         <a-camera></a-camera>
         
         <a-entity id="leftHand" 
                   hand-controls="hand: left" 
                   meta-touch-controls="hand: left">
+          <a-entity gltf-model="#bow-model" scale="0.25 0.25 0.25" rotation="0  90 90" position="0 0 0"></a-entity>
         </a-entity>
 
         <a-entity id="rightHand" 
-                  bow-logic 
                   hand-controls="hand: right" 
                   meta-touch-controls="hand: right">
         </a-entity>

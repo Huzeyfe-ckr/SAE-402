@@ -7,6 +7,7 @@ import 'aframe-environment-component'
 
 // Import des composants personnalisés
 import './components/bow-logic.js'
+import './components/bow-draw-system.js'
 import './components/arrow-physics.js'
 import './components/target-behavior.js'
 import './components/scene-mesh-handler.js'
@@ -33,9 +34,11 @@ function showInstructions() {
   const instructions = document.createElement('div')
   instructions.className = 'instructions'
   instructions.innerHTML = `
-    <strong>🎯 Instructions</strong><br>
-    Desktop: Cliquez sur les cibles<br>
-    VR: Rapprochez les 2 manettes pour bander l'arc, relâchez pour tirer
+    <strong>🎯 Instructions VR</strong><br>
+    1. Rapprochez la manette droite de la gauche<br>
+    2. Maintenez la gâchette droite<br>
+    3. Tirez la manette droite vers vous<br>
+    4. Relâchez pour tirer la flèche
   `
   document.body.appendChild(instructions)
   
