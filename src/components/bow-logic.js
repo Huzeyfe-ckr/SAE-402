@@ -4,7 +4,7 @@ AFRAME.registerComponent('bow-logic', {
     color: { type: 'color', default: '#00ff00' },
     hitColor: { type: 'color', default: '#ff0000' },
     // angle pour baisser/monter le tir, 
-    aimAngle: { type: 'number', default: -90 } 
+    // aimAngle: { type: 'number', default: -90 } 
   },
 
   init: function () {
@@ -20,7 +20,7 @@ AFRAME.registerComponent('bow-logic', {
     
     // Application de la correction d'angle (en degrés convertis en radians)
     // Si ça tire trop vers le HAUT, essaye une valeur négative dans le schema HTML
-    this.aimGuide.rotation.x = THREE.MathUtils.degToRad(this.data.aimAngle);
+    // this.aimGuide.rotation.x = THREE.MathUtils.degToRad(this.data.aimAngle);
 
     this.raycaster.near = 0.1; 
     
@@ -41,7 +41,7 @@ AFRAME.registerComponent('bow-logic', {
   update: function() {
     // Si on change l'angle en direct dans l'inspecteur A-Frame
     if (this.aimGuide) {
-        this.aimGuide.rotation.x = THREE.MathUtils.degToRad(this.data.aimAngle);
+        // this.aimGuide.rotation.x = THREE.MathUtils.degToRad(this.data.aimAngle);
     }
   },
 
@@ -143,14 +143,9 @@ AFRAME.registerComponent('bow-logic', {
     const scene = this.el.sceneEl;
     const arrow = document.createElement('a-entity');
     
-    arrow.setAttribute('gltf-model', '#arrow-model');
-
-    // Positionnement sur le guide
+    arrow.setAttribute('gltf-model', 'fleche.glb');
     arrow.setAttribute('position', position);
-    
-    // On applique ensuite l'orientation du tir
     arrow.object3D.quaternion.copy(rotation);
-    
     arrow.setAttribute('arrow-physics', `speed: ${this.data.arrowSpeed}`);
     
     scene.appendChild(arrow);

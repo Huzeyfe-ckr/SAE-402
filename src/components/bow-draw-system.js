@@ -155,37 +155,47 @@ AFRAME.registerComponent('bow-draw-system', {
       return;
     }
     
-    // Calculer la puissance en fonction de la distance de tirage
+    // Calcul puissance
     const drawRatio = Math.min(this.drawDistance / this.data.maxDrawDistance, 1);
     const arrowSpeed = this.data.minArrowSpeed + 
                       (this.data.maxArrowSpeed - this.data.minArrowSpeed) * drawRatio;
     
-    console.log(`🏹 TIRE ! Distance: ${this.drawDistance.toFixed(2)}m, Puissance: ${(drawRatio * 100).toFixed(0)}%, Vitesse: ${arrowSpeed.toFixed(1)}`);
+    // --- CORRECTION MAJEURE : VECTEUR DE VISÉE ---
+    this.leftHand.object3D.getWorldPosition(this.tempVectorLeft);
+    this.rightHand.object3D.getWorldPosition(this.tempVectorRight);
+
+    // 1. Calculer la direction : De la main droite (corde) VERS la main gauche (arc)
+    const aimDirection = new THREE.Vector3();
+    aimDirection.subVectors(this.tempVectorLeft, this.tempVectorRight).normalize();
+
+    // 2. Créer une rotation (Quaternion) basée sur ce vecteur
+    // On dit à A-Frame : "Tourne l'objet pour que son avant (-Z) s'aligne sur aimDirection"
+    const aimQuaternion = new THREE.Quaternion();
+    aimQuaternion.setFromUnitVectors(new THREE.Vector3(0, 0, -1), aimDirection);
     
-    // Son de tir
+    console.log(`🏹 TIRE ! Distance: ${this.drawDistance.toFixed(2)}m, Puissance: ${(drawRatio * 100).toFixed(0)}%, Vitesse: ${arrowSpeed.toFixed(1)}`);
+    console.log('🎯 Direction visée:', {
+      x: aimDirection.x.toFixed(2),
+      y: aimDirection.y.toFixed(2),
+      z: aimDirection.z.toFixed(2)
+    });
+    
+    // Jouer le son
     const shootSound = document.getElementById('shoot-sound');
     if (shootSound) { 
       shootSound.currentTime = 0; 
       shootSound.play().catch(e => {}); 
     }
     
-    // Créer la flèche depuis la main gauche (l'arc)
-    this.leftHand.object3D.getWorldPosition(this.tempVectorLeft);
-    
-    // Direction : de la main gauche vers l'avant de la main gauche
-    const direction = new THREE.Vector3(0, 0, -1);
-    const quaternion = new THREE.Quaternion();
-    this.leftHand.object3D.getWorldQuaternion(quaternion);
-    direction.applyQuaternion(quaternion);
-    
-    this.createFlyingArrow(this.tempVectorLeft, quaternion, arrowSpeed);
+    // Tirer avec la nouvelle rotation calculée
+    this.createFlyingArrow(this.tempVectorLeft, aimQuaternion, arrowSpeed);
   },
 
   createFlyingArrow: function(position, rotation, speed) {
     const scene = this.el.sceneEl;
     const arrow = document.createElement('a-entity');
     
-    arrow.setAttribute('gltf-model', '#arrow-model');
+    arrow.setAttribute('gltf-model', 'fleche.glb');
     arrow.setAttribute('position', position);
     arrow.object3D.quaternion.copy(rotation);
     arrow.setAttribute('arrow-physics', `speed: ${speed}`);

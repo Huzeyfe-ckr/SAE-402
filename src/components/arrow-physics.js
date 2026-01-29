@@ -14,10 +14,22 @@ AFRAME.registerComponent('arrow-physics', {
     this.lifetime = 0
     this.maxLifetime = 8000 // 15 secondes max
     
+    // CORRECTION : Utiliser getWorldQuaternion pour l'orientation globale
+    const worldQuaternion = new THREE.Quaternion()
+    this.el.object3D.getWorldQuaternion(worldQuaternion)
+    
     // Direction fixe de la flèche (ne change JAMAIS)
+    // L'axe forward en Three.js est (0, 0, -1)
     this.direction = new THREE.Vector3(0, 0, -1)
-    this.direction.applyQuaternion(this.el.object3D.quaternion)
+    this.direction.applyQuaternion(worldQuaternion)
     this.direction.normalize()
+    
+    // Log pour debug
+    console.log('➡️ Flèche créée avec direction:', {
+      x: this.direction.x.toFixed(2),
+      y: this.direction.y.toFixed(2),
+      z: this.direction.z.toFixed(2)
+    })
     
     // Raycaster pour détecter les collisions
     this.raycaster = new THREE.Raycaster()
@@ -25,8 +37,6 @@ AFRAME.registerComponent('arrow-physics', {
     // Récupérer tous les objets de collision
     this.collisionObjects = []
     this.updateCollisionObjects()
-    
-    console.log('➡️ Flèche en ligne droite le long du raycast')
   },
 
   updateCollisionObjects: function () {
