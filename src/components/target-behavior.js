@@ -17,6 +17,7 @@ AFRAME.registerComponent('target-behavior', {
   init: function () {
     this.currentHp = this.data.hp
     this.hitCount = 0
+    this.hitByArrows = new Set() // Tracker les flèches qui ont déjà touché cette cible
     
     // Animation de mouvement si activé
     if (this.data.movable) {
@@ -37,6 +38,16 @@ AFRAME.registerComponent('target-behavior', {
         return
       }
 
+      // PROTECTION : Vérifier si cette flèche a déjà touché cette cible
+      const arrowId = arrowEl.id || arrowEl.uuid || arrowEl
+      if (this.hitByArrows.has(arrowId)) {
+        console.log('⚠️ Cette flèche a déjà touché cette cible, ignoré')
+        return
+      }
+      
+      // Marquer cette flèche comme ayant touché cette cible
+      this.hitByArrows.add(arrowId)
+
       this.hitCount++
       this.currentHp--
 
@@ -50,26 +61,10 @@ AFRAME.registerComponent('target-behavior', {
       )
 
       // Calculer le multiplicateur de précision
-      let precisionMultiplier = 1.0
-      let hitZone = 'outer'
-      
-      if (distanceToCenter <= this.data.centerRadius) {
-        precisionMultiplier = 3.0 // Bullseye! x3
-        hitZone = 'bullseye'
-      } else if (distanceToCenter <= this.data.middleRadius) {
-        precisionMultiplier = 2.0 // Zone moyenne x2
-        hitZone = 'middle'
-      } else if (distanceToCenter <= this.data.outerRadius) {
-        precisionMultiplier = 1.0 // Zone extérieure x1
-        hitZone = 'outer'
-      } else {
-        precisionMultiplier = 0.5 // Touché le bord x0.5
-        hitZone = 'edge'
-      }
+      // SIMPLIFIÉ : Toujours 10 points, peu importe la zone
+      const finalPoints = 10
 
-      const finalPoints = Math.floor(this.data.points * precisionMultiplier)
-
-      console.log(`💥 Cible touchée! Zone: ${hitZone} | Distance: ${distanceToCenter.toFixed(3)}m | Points: ${finalPoints} | HP restants: ${this.currentHp}`)
+      console.log(`💥 Cible touchée! Points: ${finalPoints} | HP restants: ${this.currentHp}`)
 
       // Jouer le son de hit
       try {
@@ -83,20 +78,19 @@ AFRAME.registerComponent('target-behavior', {
       }
 
       // Animations de feedback
-      this.playHitAnimation(hitZone)
-      this.showHitFeedback(localImpact, finalPoints, hitZone)
+      this.playHitAnimation()
+      this.showHitFeedback(localImpact, finalPoints)
 
       // Émettre un événement de score au système de jeu
       try {
+        console.log(`🎯 [TARGET] Émission événement target-hit avec ${finalPoints} points`)
         this.el.sceneEl.emit('target-hit', {
           points: finalPoints,
-          zone: hitZone,
-          multiplier: precisionMultiplier,
-          position: this.el.object3D.position,
-          distanceToCenter: distanceToCenter
+          position: this.el.object3D.position
         })
+        console.log(`✅ [TARGET] Événement target-hit émis avec succès`)
       } catch (e) {
-        console.error('Event emission error:', e)
+        console.error('❌ [TARGET] Event emission error:', e)
       }
 
       // Détruire la cible si HP = 0
@@ -108,14 +102,17 @@ AFRAME.registerComponent('target-behavior', {
     }
   },
 
-  playHitAnimation: function (zone) {
-    // Animation simplifiée sans utiliser A-Frame animation component
-    // qui peut causer des erreurs clipAction
+  playHitAnimation: function () {
+    // Animation simplifiée
     try {
-      const scale = zone === 'bullseye' ? 1.3 : zone === 'middle' ? 1.2 : 1.1
       const originalScale = this.el.getAttribute('scale')
+      const scale = 1.2
       
-      this.el.setAttribute('scale', `${originalScale.x * scale} ${originalScale.y * scale} ${originalScale.z * scale}`)
+      this.el.setAttribute('scale', {
+        x: originalScale.x * scale,
+        y: originalScale.y * scale,
+        z: originalScale.z * scale
+      })
       
       // Revenir à l'échelle originale après 150ms
       setTimeout(() => {
@@ -126,12 +123,9 @@ AFRAME.registerComponent('target-behavior', {
     }
   },
 
-  showHitFeedback: function (localPosition, points, zone) {
-    // Feedback simple sans animation complexe
-    console.log(`✓ Hit feedback: +${points} points in ${zone} zone`)
-    
-    // On peut ajouter d'autres feedback ici si nécessaire
-    // Feedback haptique ou sonore serait plus fiable qu'une animation
+  showHitFeedback: function (localPosition, points) {
+    // Feedback simple
+    console.log(`Hit feedback: +${points} points`)
   },
 
   destroy: function (lastPoints) {

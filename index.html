@@ -75,13 +75,12 @@
 
     <!-- State management avec aframe-state-component -->
     <a-scene 
-      state="score: 0; combo: 0; multiplier: 1.0; gameStarted: false"
+      state="score: 0; gameStarted: false"
       webxr="referenceSpaceType: local; requiredFeatures: hand-tracking; optionalFeatures: hit-test,anchors,layers,depth-sensing,dom-overlay;"
       renderer="colorManagement: true; physicallyCorrectLights: true; alpha: true; antialias: true;"
       vr-mode-ui="enabled: true"
       embedded
-      game-manager
-      combo-system>
+      game-manager>
       <!-- Assets -->
       <a-assets>
         <a-asset-item id="bow-model" src="/bow.glb"></a-asset-item>
@@ -118,7 +117,8 @@
       
       <!-- Caméra avec contrôles VR -->
       <a-entity id="rig" position="0 1.6 0" bow-draw-system>
-        <a-camera></a-camera>
+        <!-- Caméra avec HUD Score -->
+        <a-camera score-hud></a-camera>
         
         <a-entity id="leftHand" 
                   hand-controls="hand: left" 
