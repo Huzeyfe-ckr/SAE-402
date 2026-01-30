@@ -11,10 +11,10 @@ import './components/bow-draw-system.js'
 import './components/arrow-physics.js'
 import './components/target-behavior.js'
 import './components/scene-mesh-handler.js'
+import './components/score-hud.js'
 
 // Import des systèmes
 import './systems/game-manager.js'
-import './systems/combo-system.js'
 
 document.addEventListener('DOMContentLoaded', () => {
   const scene = document.querySelector('a-scene')

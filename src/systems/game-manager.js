@@ -112,18 +112,30 @@ AFRAME.registerSystem('game-manager', {
   },
 
   onTargetHit: function (evt) {
-    const { points, zone, multiplier } = evt.detail
+    console.log(`🎮 [GAME-MANAGER] Événement target-hit reçu!`, evt.detail)
+    console.log(`🎮 [GAME-MANAGER] AVANT calcul - this.totalScore = ${this.totalScore}`)
+    
+    const { points } = evt.detail
+    
+    if (!points) {
+      console.error('❌ [GAME-MANAGER] Points non définis dans evt.detail!')
+      return
+    }
     
     this.totalHits++
     
-    // Mettre à jour le score via le state
-    const state = this.el.getAttribute('state') || {}
-    const currentScore = state.score || 0
+    // Calculer le nouveau score
+    const currentScore = this.totalScore
     const newScore = currentScore + points
-    this.el.setAttribute('state', 'score', newScore)
-    this.totalScore = newScore
     
-    console.log(`📊 Score mis à jour: ${newScore} (+${points} en ${zone})`)
+    console.log(`📊 [GAME-MANAGER] Calcul: ${currentScore} + ${points} = ${newScore}`)
+    
+    // Mettre à jour le score
+    this.totalScore = newScore
+    this.el.setAttribute('state', 'score', newScore)
+    
+    console.log(`✅ [GAME-MANAGER] APRÈS update - this.totalScore = ${this.totalScore}`)
+    console.log(`✅ [GAME-MANAGER] Total hits: ${this.totalHits}`)
     
     // Mettre à jour l'affichage
     this.updateScoreDisplay()
@@ -137,11 +149,13 @@ AFRAME.registerSystem('game-manager', {
     
     // Ajouter les points bonus
     if (bonusPoints > 0) {
-      const state = this.el.getAttribute('state') || {}
-      const currentScore = state.score || 0
-      this.el.setAttribute('state', 'score', currentScore + bonusPoints)
-      this.totalScore = currentScore + bonusPoints
-      console.log(`🎁 Bonus de destruction: +${bonusPoints}`)
+      const currentScore = this.totalScore // CORRECTION : utiliser this.totalScore au lieu du state
+      const newScore = currentScore + bonusPoints
+      
+      this.totalScore = newScore
+      this.el.setAttribute('state', 'score', newScore)
+      
+      console.log(`🎁 Bonus de destruction: +${bonusPoints} | Nouveau score: ${newScore}`)
     }
     
     this.updateScoreDisplay()
@@ -158,8 +172,6 @@ AFRAME.registerSystem('game-manager', {
     hud.className = 'hud-overlay'
     hud.innerHTML = `
       <div class="score">Score: <span id="score-value">0</span></div>
-      <div>Combo: <span id="combo-value">x1</span></div>
-      <div>Précision: <span id="accuracy-value">0%</span></div>
       <div>Cibles actives: <span id="targets-value">0</span></div>
     `
     document.body.appendChild(hud)
@@ -168,7 +180,6 @@ AFRAME.registerSystem('game-manager', {
   updateScoreDisplay: function () {
     const scoreEl = document.getElementById('score-value')
     const targetsEl = document.getElementById('targets-value')
-    const accuracyEl = document.getElementById('accuracy-value')
     
     if (scoreEl) {
       scoreEl.textContent = this.totalScore
@@ -176,11 +187,6 @@ AFRAME.registerSystem('game-manager', {
     
     if (targetsEl) {
       targetsEl.textContent = this.activeTargets.length
-    }
-    
-    if (accuracyEl && this.totalArrowsShot > 0) {
-      const accuracy = Math.round((this.totalHits / this.totalArrowsShot) * 100)
-      accuracyEl.textContent = `${accuracy}%`
     }
   },
 
