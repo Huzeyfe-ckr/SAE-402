@@ -83,7 +83,7 @@
       game-manager>
       <!-- Assets -->
       <a-assets>
-        <a-asset-item id="bow-model" src="/bow.glb"></a-asset-item>
+        <a-asset-item id="bow-model" src="/arc_sanslacorde.glb"></a-asset-item>
         <a-asset-item id="target-model" src="/target.glb"></a-asset-item>
         <a-asset-item id="arrow-model" src="/arrow.glb"></a-asset-item>
         <audio id="background-sound" src="/son/song-background.mp3" crossorigin="anonymous" loop></audio>
@@ -124,7 +124,8 @@
         
         <a-entity id="leftHand" 
                   hand-controls="hand: left" 
-                  meta-touch-controls="hand: left">
+                  meta-touch-controls="hand: left"
+                  bow-string>
           <a-entity gltf-model="#bow-model" scale="0.25 0.25 0.25" rotation="0  90 90" position="0 0 0"></a-entity>
         </a-entity>
 
