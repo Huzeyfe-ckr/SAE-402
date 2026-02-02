@@ -30,9 +30,27 @@ AFRAME.registerComponent("score-hud", {
     // Écouter le démarrage du jeu pour créer le HUD
     this.el.sceneEl.addEventListener("start-game", () => {
       this.createHUD();
+      this.showHUD();
+    });
+
+    // Cacher le HUD quand le jeu se termine (retour au menu)
+    this.el.sceneEl.addEventListener("game-ended", () => {
+      this.hideHUD();
     });
 
     console.log("🎯 Score HUD VR médiéval prêt");
+  },
+
+  showHUD: function () {
+    if (this.hudContainer) {
+      this.hudContainer.setAttribute("visible", true);
+    }
+  },
+
+  hideHUD: function () {
+    if (this.hudContainer) {
+      this.hudContainer.setAttribute("visible", false);
+    }
   },
 
   createHUD: function () {

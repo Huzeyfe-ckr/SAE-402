@@ -110,6 +110,9 @@ AFRAME.registerSystem("game-manager", {
       bgSound.pause();
     }
 
+    // Émettre l'événement de fin de jeu pour cacher le HUD VR
+    this.el.emit("game-ended");
+
     // Afficher le menu de fin
     this.showEndMenu();
   },
