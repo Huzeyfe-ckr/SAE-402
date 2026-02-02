@@ -13,6 +13,7 @@ import "./components/target-behavior.js";
 import "./components/scene-mesh-handler.js";
 import "./components/score-hud.js";
 import "./components/vr-menu.js";
+import "./components/end-menu.js";
 
 // Import des systèmes
 import "./systems/game-manager.js";

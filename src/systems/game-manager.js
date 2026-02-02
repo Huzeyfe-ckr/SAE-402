@@ -39,6 +39,10 @@ AFRAME.registerSystem("game-manager", {
     if (this.gameRunning) return;
 
     this.gameRunning = true;
+    this.totalScore = 0;
+    this.totalHits = 0;
+    this.totalArrowsShot = 0;
+    this.gameTime = 10; // 10 secondes de jeu
     this.el.setAttribute("state", "gameStarted", true);
 
     // Lancer le son de fond
@@ -50,13 +54,75 @@ AFRAME.registerSystem("game-manager", {
         .catch((e) => console.log("Son de fond non disponible:", e));
     }
 
-    console.log("🎮 Jeu démarré!");
+    console.log("🎮 Jeu démarré! Temps: 10s");
 
     // Commencer le spawn automatique de cibles
     this.startTargetSpawning();
 
     // Créer l'affichage du score
     this.createScoreDisplay();
+
+    // Démarrer le compte à rebours
+    this.startCountdown();
+  },
+
+  startCountdown: function () {
+    this.countdownTimer = setInterval(() => {
+      this.gameTime--;
+      this.updateTimerDisplay();
+
+      console.log(`⏱️ Temps restant: ${this.gameTime}s`);
+
+      if (this.gameTime <= 0) {
+        this.endGame();
+      }
+    }, 1000);
+  },
+
+  updateTimerDisplay: function () {
+    const timerEl = document.getElementById("timer-value");
+    if (timerEl) {
+      timerEl.textContent = this.gameTime;
+      // Animation pulsante si moins de 3 secondes
+      if (this.gameTime <= 3) {
+        timerEl.classList.add("warning");
+      } else {
+        timerEl.classList.remove("warning");
+      }
+    }
+  },
+
+  endGame: function () {
+    console.log("🏁 Fin du jeu!");
+
+    // Arrêter le jeu
+    this.stopGame();
+
+    // Arrêter le compte à rebours
+    if (this.countdownTimer) {
+      clearInterval(this.countdownTimer);
+      this.countdownTimer = null;
+    }
+
+    // Arrêter la musique
+    const bgSound = document.getElementById("background-sound");
+    if (bgSound) {
+      bgSound.pause();
+    }
+
+    // Afficher le menu de fin
+    this.showEndMenu();
+  },
+
+  showEndMenu: function () {
+    // Créer l'entité du menu de fin
+    const endMenu = document.createElement("a-entity");
+    endMenu.setAttribute("end-menu", {
+      score: this.totalScore,
+      hits: this.totalHits,
+      arrows: this.totalArrowsShot,
+    });
+    this.el.appendChild(endMenu);
   },
 
   startTargetSpawning: function () {
@@ -186,10 +252,85 @@ AFRAME.registerSystem("game-manager", {
   createScoreDisplay: function () {
     const hud = document.createElement("div");
     hud.id = "game-hud";
-    hud.className = "hud-overlay";
     hud.innerHTML = `
-      <div class="score">Score: <span id="score-value">0</span></div>
-      <div>Cibles actives: <span id="targets-value">0</span></div>
+      <style>
+        #game-hud {
+          position: fixed;
+          top: 20px;
+          left: 20px;
+          background: linear-gradient(135deg, #2d1b0e 0%, #4a3728 100%);
+          border: 3px solid #d4af37;
+          border-radius: 8px;
+          padding: 15px 25px;
+          font-family: 'Georgia', serif;
+          color: #f4e4bc;
+          z-index: 1000;
+          pointer-events: none;
+          box-shadow: 0 4px 20px rgba(0,0,0,0.5), inset 0 0 20px rgba(0,0,0,0.3);
+          min-width: 180px;
+        }
+        #game-hud .hud-title {
+          text-align: center;
+          font-size: 14px;
+          color: #d4af37;
+          border-bottom: 2px solid #d4af37;
+          padding-bottom: 8px;
+          margin-bottom: 12px;
+          letter-spacing: 2px;
+        }
+        #game-hud .hud-timer {
+          text-align: center;
+          font-size: 42px;
+          font-weight: bold;
+          color: #fff;
+          text-shadow: 0 0 10px rgba(212, 175, 55, 0.5);
+          margin: 8px 0;
+        }
+        #game-hud .hud-timer-label {
+          text-align: center;
+          font-size: 12px;
+          color: #d4af37;
+          margin-bottom: 12px;
+        }
+        #game-hud .hud-timer.warning {
+          color: #e74c3c;
+          animation: pulse-warning 0.5s ease-in-out infinite;
+        }
+        @keyframes pulse-warning {
+          0%, 100% { transform: scale(1); }
+          50% { transform: scale(1.1); }
+        }
+        #game-hud .hud-stat {
+          display: flex;
+          justify-content: space-between;
+          margin: 6px 0;
+          font-size: 16px;
+        }
+        #game-hud .hud-stat-label {
+          color: #d4af37;
+        }
+        #game-hud .hud-stat-value {
+          color: #fff;
+          font-weight: bold;
+        }
+        #game-hud .hud-separator {
+          height: 1px;
+          background: linear-gradient(90deg, transparent, #d4af37, transparent);
+          margin: 10px 0;
+        }
+      </style>
+      <div class="hud-title">⚔️ CHASSE EN COURS ⚔️</div>
+      <div class="hud-timer" id="timer-value">10</div>
+      <div class="hud-timer-label">secondes restantes</div>
+      <div class="hud-separator"></div>
+      <div class="hud-stat">
+        <span class="hud-stat-label">Butin :</span>
+        <span class="hud-stat-value" id="score-value">0</span>
+      </div>
+      <div class="hud-stat">
+        <span class="hud-stat-label">Cibles :</span>
+        <span class="hud-stat-value" id="targets-value">0</span>
+      </div>
     `;
     document.body.appendChild(hud);
   },

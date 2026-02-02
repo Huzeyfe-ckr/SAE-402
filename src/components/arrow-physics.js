@@ -97,14 +97,26 @@ AFRAME.registerComponent("arrow-physics", {
     const currentPos = this.el.object3D.position.clone();
     const rayDistance = displacement.length();
 
-    // IMPORTANT: Vérifier si on touche le bouton du menu VR EN PREMIER
-    const menuEl = this.el.sceneEl.querySelector("[vr-menu]");
-    if (menuEl && menuEl.components["vr-menu"]) {
-      const worldPos = new THREE.Vector3();
-      this.el.object3D.getWorldPosition(worldPos);
-      if (menuEl.components["vr-menu"].checkArrowHit(worldPos)) {
-        // On a touché le bouton, supprimer la flèche
-        console.log("🎯 Menu touché ! Démarrage du jeu...");
+    // IMPORTANT: Vérifier si on touche un bouton de menu EN PREMIER
+    const worldPos = new THREE.Vector3();
+    this.el.object3D.getWorldPosition(worldPos);
+
+    // Vérifier le menu de démarrage
+    const startMenuEl = this.el.sceneEl.querySelector("[vr-menu]");
+    if (startMenuEl && startMenuEl.components["vr-menu"]) {
+      if (startMenuEl.components["vr-menu"].checkArrowHit(worldPos)) {
+        console.log("🎯 Menu démarrage touché !");
+        this.hasCollided = true;
+        this.removeArrow();
+        return;
+      }
+    }
+
+    // Vérifier le menu de fin
+    const endMenuEl = this.el.sceneEl.querySelector("[end-menu]");
+    if (endMenuEl && endMenuEl.components["end-menu"]) {
+      if (endMenuEl.components["end-menu"].checkArrowHit(worldPos)) {
+        console.log("🔄 Menu fin touché !");
         this.hasCollided = true;
         this.removeArrow();
         return;
