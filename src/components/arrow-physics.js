@@ -97,6 +97,20 @@ AFRAME.registerComponent("arrow-physics", {
     const currentPos = this.el.object3D.position.clone();
     const rayDistance = displacement.length();
 
+    // IMPORTANT: Vérifier si on touche le bouton du menu VR EN PREMIER
+    const menuEl = this.el.sceneEl.querySelector("[vr-menu]");
+    if (menuEl && menuEl.components["vr-menu"]) {
+      const worldPos = new THREE.Vector3();
+      this.el.object3D.getWorldPosition(worldPos);
+      if (menuEl.components["vr-menu"].checkArrowHit(worldPos)) {
+        // On a touché le bouton, supprimer la flèche
+        console.log("🎯 Menu touché ! Démarrage du jeu...");
+        this.hasCollided = true;
+        this.removeArrow();
+        return;
+      }
+    }
+
     this.raycaster.set(currentPos, this.direction);
     this.raycaster.far = rayDistance * 1.2;
 
