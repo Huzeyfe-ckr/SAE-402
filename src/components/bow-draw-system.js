@@ -96,11 +96,11 @@ AFRAME.registerComponent('bow-draw-system', {
       this.handIndicator.visible = true;
       console.log('🎯 Corde accrochée !');
       
-      // Son de bandage (si vous en avez un)
-      const drawSound = document.getElementById('draw-sound');
-      if (drawSound) {
-        drawSound.currentTime = 0;
-        drawSound.play().catch(e => {});
+      // Son de grincement de la corde
+      const creakSound = document.getElementById('bow-creak-sound');
+      if (creakSound) {
+        creakSound.currentTime = 0;
+        creakSound.play().catch(e => {});
       }
     } else {
       console.log(`❌ Trop loin pour accrocher (${distance.toFixed(2)}m > ${this.data.snapDistance}m)`);
@@ -180,11 +180,18 @@ AFRAME.registerComponent('bow-draw-system', {
       z: aimDirection.z.toFixed(2)
     });
     
-    // Jouer le son
+    // Son de tir de l'arc
     const shootSound = document.getElementById('shoot-sound');
     if (shootSound) { 
       shootSound.currentTime = 0; 
       shootSound.play().catch(e => {}); 
+    }
+    
+    // Son de sifflement de la flèche
+    const arrowFlySound = document.getElementById('arrow-fly-sound');
+    if (arrowFlySound) {
+      arrowFlySound.currentTime = 0;
+      arrowFlySound.play().catch(e => {});
     }
     
     // Tirer avec la nouvelle rotation calculée

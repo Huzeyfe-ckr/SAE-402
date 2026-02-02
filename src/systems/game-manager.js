@@ -40,6 +40,7 @@ AFRAME.registerSystem('game-manager', {
     // Lancer le son de fond
     const bgSound = document.getElementById('background-sound')
     if (bgSound) {
+      bgSound.volume = 0.3
       bgSound.play().catch(e => console.log('Son de fond non disponible:', e))
     }
     
