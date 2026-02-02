@@ -1,10 +1,10 @@
-AFRAME.registerComponent('bow-logic', {
+AFRAME.registerComponent("bow-logic", {
   schema: {
-    arrowSpeed: { type: 'number', default: 25 },
-    color: { type: 'color', default: '#00ff00' },
-    hitColor: { type: 'color', default: '#ff0000' },
-    // angle pour baisser/monter le tir, 
-    // aimAngle: { type: 'number', default: -90 } 
+    arrowSpeed: { type: "number", default: 25 },
+    color: { type: "color", default: "#00ff00" },
+    hitColor: { type: "color", default: "#ff0000" },
+    // angle pour baisser/monter le tir,
+    // aimAngle: { type: 'number', default: -90 }
   },
 
   init: function () {
@@ -17,54 +17,54 @@ AFRAME.registerComponent('bow-logic', {
     // attaché à la main. On le fait pivoter pour qu'il pointe où on veut.
     this.aimGuide = new THREE.Object3D();
     this.el.object3D.add(this.aimGuide);
-    
+
     // Application de la correction d'angle (en degrés convertis en radians)
     // Si ça tire trop vers le HAUT, essaye une valeur négative dans le schema HTML
     // this.aimGuide.rotation.x = THREE.MathUtils.degToRad(this.data.aimAngle);
 
-    this.raycaster.near = 0.1; 
-    
+    this.raycaster.near = 0.1;
+
     this.createLaserBeam();
 
     // Events
     this.onTriggerDown = this.shootArrow.bind(this);
-    this.el.addEventListener('triggerdown', this.onTriggerDown);
-    this.el.addEventListener('abuttondown', this.onTriggerDown);
-    
+    this.el.addEventListener("triggerdown", this.onTriggerDown);
+    this.el.addEventListener("abuttondown", this.onTriggerDown);
+
     // Debug PC
     this.onMouseClick = this.shootArrowMouse.bind(this);
-    document.addEventListener('click', this.onMouseClick);
-    
-    console.log('🏹 Arc initialisé avec guide de visée');
+    document.addEventListener("click", this.onMouseClick);
+
+    console.log("🏹 Arc initialisé avec guide de visée");
   },
 
-  update: function() {
+  update: function () {
     // Si on change l'angle en direct dans l'inspecteur A-Frame
     if (this.aimGuide) {
-        // this.aimGuide.rotation.x = THREE.MathUtils.degToRad(this.data.aimAngle);
+      // this.aimGuide.rotation.x = THREE.MathUtils.degToRad(this.data.aimAngle);
     }
   },
 
-  createLaserBeam: function() {
-    const geometry = new THREE.CylinderGeometry(0.003, 0.003, 1, 8); 
-    
+  createLaserBeam: function () {
+    const geometry = new THREE.CylinderGeometry(0.003, 0.003, 1, 8);
+
     // Le cylindre s'aligne sur -Z (l'avant)
-    geometry.rotateX(-Math.PI / 2); 
+    geometry.rotateX(-Math.PI / 2);
     geometry.translate(0, 0, -0.5);
 
     const material = new THREE.MeshBasicMaterial({
       color: this.data.color,
       transparent: true,
       opacity: 0.5,
-      depthTest: false
+      depthTest: false,
     });
 
     this.laserMesh = new THREE.Mesh(geometry, material);
-    
+
     // IMPORTANT : On attache le laser au GUIDE, pas directement à la main
     // Comme ça, si on tourne le guide pour corriger le tir, le laser suit visuellement.
-    this.aimGuide.add(this.laserMesh); 
-    
+    this.aimGuide.add(this.laserMesh);
+
     // Curseur d'impact
     const dotGeo = new THREE.SphereGeometry(0.04, 16, 16);
     const dotMat = new THREE.MeshBasicMaterial({ color: this.data.hitColor });
@@ -80,15 +80,18 @@ AFRAME.registerComponent('bow-logic', {
     this.aimGuide.getWorldPosition(this.tempVector);
     this.aimGuide.getWorldDirection(this.tempQuaternion); // Note: getWorldDirection renvoie un Vecteur, pas un Quat dans ThreeJS standard, mais A-Frame simplifie parfois.
     // Utilisons la méthode sûre pour la direction :
-    
+
     const direction = new THREE.Vector3(0, 0, -1);
-    direction.applyQuaternion(this.aimGuide.getWorldQuaternion(new THREE.Quaternion()));
+    direction.applyQuaternion(
+      this.aimGuide.getWorldQuaternion(new THREE.Quaternion()),
+    );
 
     this.raycaster.set(this.tempVector, direction);
 
     // 2. Détection cibles
-    const targets = Array.from(this.el.sceneEl.querySelectorAll('[target-behavior]'))
-                          .map(el => el.object3D);
+    const targets = Array.from(
+      this.el.sceneEl.querySelectorAll("[target-behavior]"),
+    ).map((el) => el.object3D);
 
     let distance = 50;
     let hittingTarget = false;
@@ -109,7 +112,7 @@ AFRAME.registerComponent('bow-logic', {
 
     // 3. Mise à jour visuelle
     this.laserMesh.scale.z = distance;
-    
+
     if (hittingTarget) {
       this.laserMesh.material.color.set(this.data.hitColor);
       this.laserMesh.material.opacity = 0.8;
@@ -121,11 +124,11 @@ AFRAME.registerComponent('bow-logic', {
 
   shootArrow: function () {
     if (!this.aimGuide) return;
-    
-    const shootSound = document.getElementById('shoot-sound');
-    if (shootSound) { 
-        shootSound.currentTime = 0; 
-        shootSound.play().catch(e => {}); 
+
+    const shootSound = document.getElementById("shoot-sound");
+    if (shootSound) {
+      shootSound.currentTime = 0;
+      shootSound.play().catch((e) => {});
     }
 
     // On récupère la pos/rot du GUIDE (déjà corrigé)
@@ -134,28 +137,31 @@ AFRAME.registerComponent('bow-logic', {
 
     this.createFlyingArrow(this.tempVector, this.tempQuaternion);
   },
-  
-  shootArrowMouse: function() {
-      if (!this.el.sceneEl.is('vr-mode')) this.shootArrow();
+
+  shootArrowMouse: function () {
+    if (!this.el.sceneEl.is("vr-mode")) this.shootArrow();
   },
 
-  createFlyingArrow: function(position, rotation) {
+  createFlyingArrow: function (position, rotation) {
     const scene = this.el.sceneEl;
-    const arrow = document.createElement('a-entity');
-    
-    arrow.setAttribute('gltf-model', 'fleche.glb');
-    arrow.setAttribute('position', position);
+    const arrow = document.createElement("a-entity");
+
+    arrow.setAttribute("gltf-model", "fleche.glb");
+    arrow.setAttribute("position", position);
     arrow.object3D.quaternion.copy(rotation);
-    arrow.setAttribute('arrow-physics', `speed: ${this.data.arrowSpeed}`);
-    
+    arrow.setAttribute("arrow-physics", `speed: ${this.data.arrowSpeed}`);
+
     scene.appendChild(arrow);
+
+    // Émettre l'événement pour le compteur de flèches
+    scene.emit("arrow-shot");
   },
 
   remove: function () {
-    document.removeEventListener('click', this.onMouseClick);
-    this.el.removeEventListener('triggerdown', this.onTriggerDown);
-    this.el.removeEventListener('abuttondown', this.onTriggerDown);
+    document.removeEventListener("click", this.onMouseClick);
+    this.el.removeEventListener("triggerdown", this.onTriggerDown);
+    this.el.removeEventListener("abuttondown", this.onTriggerDown);
     if (this.laserMesh) this.aimGuide.remove(this.laserMesh); // Retiré du guide
     if (this.cursorMesh) this.el.sceneEl.object3D.remove(this.cursorMesh);
-  }
+  },
 });

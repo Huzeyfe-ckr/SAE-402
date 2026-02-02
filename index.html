@@ -6,7 +6,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>SAE4.02 - Archery XR</title>
     <style>
-      body, html {
+      body,
+      html {
         margin: 0;
         padding: 0;
         overflow: hidden;
@@ -27,13 +28,13 @@
         border-radius: 50px;
         cursor: pointer;
         z-index: 10000;
-        box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
         font-family: Arial, sans-serif;
         transition: all 0.3s ease;
       }
       #xr-button:hover {
         transform: scale(1.05);
-        box-shadow: 0 15px 40px rgba(0,0,0,0.4);
+        box-shadow: 0 15px 40px rgba(0, 0, 0, 0.4);
       }
       #xr-button:active {
         transform: scale(0.95);
@@ -43,214 +44,273 @@
   <body>
     <button id="xr-button">🥽 ENTRER EN XR</button>
     <!-- Debug Panel -->
-    <div id="debug-panel" style="
-      position: fixed;
-      top: 10px;
-      left: 10px;
-      background: rgba(0, 0, 0, 0.9);
-      color: #0f0;
-      font-family: monospace;
-      font-size: 14px;
-      padding: 12px;
-      border: 2px solid #0f0;
-      border-radius: 5px;
-      z-index: 9999;
-      max-width: 400px;
-      line-height: 1.5;
-      max-height: 500px;
-      overflow-y: auto;
-    ">
-      <div style="font-weight: bold; margin-bottom: 8px; font-size: 16px;">🔍 DEBUG VR</div>
-      <div id="debug-gamepad" style="margin-bottom: 4px;">Gamepads: --</div>
-      <div id="debug-trigger" style="margin-bottom: 4px;">Trigger: OFF</div>
-      <div id="debug-thumbstick" style="margin-bottom: 4px;">Thumbstick: OFF</div>
-      <div id="debug-raycast" style="margin-bottom: 4px;">Raycast: --</div>
-      <div id="debug-targets" style="margin-bottom: 4px;">Targets: 0</div>
-      <div id="debug-fps" style="margin-top: 8px; border-top: 1px solid #0f0; padding-top: 8px;">FPS: --</div>
-      <div id="debug-errors" style="margin-top: 8px; border-top: 1px solid #f00; padding-top: 8px;">
-        <div style="color: #0f0; font-weight: bold;">Logs:</div>
-        <div id="error-list" style="max-height: 200px; overflow-y: auto; font-size: 12px;"></div>
+    <div
+      id="debug-panel"
+      style="
+        position: fixed;
+        top: 10px;
+        left: 10px;
+        background: rgba(0, 0, 0, 0.9);
+        color: #0f0;
+        font-family: monospace;
+        font-size: 14px;
+        padding: 12px;
+        border: 2px solid #0f0;
+        border-radius: 5px;
+        z-index: 9999;
+        max-width: 400px;
+        line-height: 1.5;
+        max-height: 500px;
+        overflow-y: auto;
+      "
+    >
+      <div style="font-weight: bold; margin-bottom: 8px; font-size: 16px">
+        🔍 DEBUG VR
+      </div>
+      <div id="debug-gamepad" style="margin-bottom: 4px">Gamepads: --</div>
+      <div id="debug-trigger" style="margin-bottom: 4px">Trigger: OFF</div>
+      <div id="debug-thumbstick" style="margin-bottom: 4px">
+        Thumbstick: OFF
+      </div>
+      <div id="debug-raycast" style="margin-bottom: 4px">Raycast: --</div>
+      <div id="debug-targets" style="margin-bottom: 4px">Targets: 0</div>
+      <div
+        id="debug-fps"
+        style="margin-top: 8px; border-top: 1px solid #0f0; padding-top: 8px"
+      >
+        FPS: --
+      </div>
+      <div
+        id="debug-errors"
+        style="margin-top: 8px; border-top: 1px solid #f00; padding-top: 8px"
+      >
+        <div style="color: #0f0; font-weight: bold">Logs:</div>
+        <div
+          id="error-list"
+          style="max-height: 200px; overflow-y: auto; font-size: 12px"
+        ></div>
       </div>
     </div>
 
     <!-- State management avec aframe-state-component -->
-    <a-scene 
+    <a-scene
       state="score: 0; gameStarted: false"
       webxr="referenceSpaceType: local; requiredFeatures: hand-tracking; optionalFeatures: hit-test,anchors,layers,depth-sensing,dom-overlay;"
       renderer="colorManagement: true; physicallyCorrectLights: true; alpha: true; antialias: true;"
       vr-mode-ui="enabled: true"
       embedded
-      game-manager>
+      game-manager
+    >
       <!-- Assets -->
       <a-assets>
         <a-asset-item id="bow-model" src="/bow.glb"></a-asset-item>
         <a-asset-item id="target-model" src="/target.glb"></a-asset-item>
         <a-asset-item id="arrow-model" src="/arrow.glb"></a-asset-item>
-        <audio id="background-sound" src="/son/song-background.mp3" crossorigin="anonymous" loop></audio>
-        <audio id="hit-sound" src="/son/arrow.mp3" crossorigin="anonymous"></audio>
-        <audio id="shoot-sound" src="/son/tir_arc.mp3" crossorigin="anonymous"></audio>
-        <audio id="arrow-fly-sound" src="/son/Fleche.wav" crossorigin="anonymous"></audio>
-        <audio id="bow-creak-sound" src="/son/grincement_fleche.mp3" crossorigin="anonymous"></audio>
+        <audio
+          id="background-sound"
+          src="/son/song-background.mp3"
+          crossorigin="anonymous"
+          loop
+        ></audio>
+        <audio
+          id="hit-sound"
+          src="/son/arrow.mp3"
+          crossorigin="anonymous"
+        ></audio>
+        <audio
+          id="shoot-sound"
+          src="/son/tir_arc.mp3"
+          crossorigin="anonymous"
+        ></audio>
+        <audio
+          id="arrow-fly-sound"
+          src="/son/Fleche.wav"
+          crossorigin="anonymous"
+        ></audio>
+        <audio
+          id="bow-creak-sound"
+          src="/son/grincement_fleche.mp3"
+          crossorigin="anonymous"
+        ></audio>
       </a-assets>
-      
+
       <!-- Lumières pour éclairer les objets AR -->
       <a-entity light="type: ambient; color: #FFF; intensity: 1.0"></a-entity>
-      <a-entity light="type: directional; color: #FFF; intensity: 0.8" position="-0.5 1 1"></a-entity>
-           
+      <a-entity
+        light="type: directional; color: #FFF; intensity: 0.8"
+        position="-0.5 1 1"
+      ></a-entity>
+
       <!-- Scene Mesh Handler pour WebXR -->
       <a-entity scene-mesh-handler></a-entity>
-      
+
+      <!-- Menu VR flottant (instructions + bouton jouer) -->
+      <a-entity vr-menu></a-entity>
+
       <!-- Cible avec comportement -->
-      <a-entity 
+      <a-entity
         id="target-1"
-        position="0 1.5 -5" 
+        position="0 1.5 -5"
         rotation="0 0 0"
-        target-behavior="points: 10; hp: 3; movable: false">
+        target-behavior="points: 10; hp: 3; movable: false"
+      >
         <a-entity gltf-model="#target-model" scale="1 1 1"></a-entity>
       </a-entity>
-      
+
       <!-- Cible statique -->
-      <a-entity 
+      <a-entity
         id="target-2"
         position="-2 1.5 -6"
-        target-behavior="points: 20; hp: 2; movable: false">
+        target-behavior="points: 20; hp: 2; movable: false"
+      >
         <a-entity gltf-model="#target-model" scale="1 1 1"></a-entity>
       </a-entity>
-      
+
       <!-- Caméra avec contrôles VR -->
       <a-entity id="rig" position="0 1.6 0" bow-draw-system>
         <!-- Caméra avec HUD Score -->
         <a-camera score-hud></a-camera>
-        
-        <a-entity id="leftHand" 
-                  hand-controls="hand: left" 
-                  meta-touch-controls="hand: left">
-          <a-entity gltf-model="#bow-model" scale="0.25 0.25 0.25" rotation="0  90 90" position="0 0 0"></a-entity>
+
+        <a-entity
+          id="leftHand"
+          hand-controls="hand: left"
+          meta-touch-controls="hand: left"
+        >
+          <a-entity
+            gltf-model="#bow-model"
+            scale="0.25 0.25 0.25"
+            rotation="0  90 90"
+            position="0 0 0"
+          ></a-entity>
         </a-entity>
 
-        <a-entity id="rightHand" 
-                  hand-controls="hand: right" 
-                  meta-touch-controls="hand: right">
+        <a-entity
+          id="rightHand"
+          hand-controls="hand: right"
+          meta-touch-controls="hand: right"
+        >
         </a-entity>
       </a-entity>
-      
+
       <!-- Bouton VR pour entrer en mode immersif -->
       <!-- <a-entity position="0 2 -3" class="interactive" raycaster="objects: .interactive" cursor="rayOrigin: mouse">
         <a-box position="0 0 0" rotation="0 45 0" color="#4CC3D9" 
                animation="property: rotation; to: 0 405 0; loop: true; dur: 10000"></a-box>
         <a-text value="Cliquez pour commencer" position="0 0.6 0" align="center" color="#000" width="4"></a-text>
       </a-entity> -->
-      
+
       <!-- Texte d'instructions -->
       <!-- <a-text value="SAE 4.02 - Archery XR\nAppuyez sur VR pour mode immersif" 
               position="0 2.5 -4" align="center" color="#FFF" width="6"></a-text> -->
     </a-scene>
 
     <script type="module" src="/src/main.js"></script>
-    
+
     <script>
-      document.addEventListener('DOMContentLoaded', () => {
-        const xrButton = document.getElementById('xr-button');
-        const scene = document.querySelector('a-scene');
-        
-        xrButton.addEventListener('click', async () => {
+      document.addEventListener("DOMContentLoaded", () => {
+        const xrButton = document.getElementById("xr-button");
+        const scene = document.querySelector("a-scene");
+
+        xrButton.addEventListener("click", async () => {
           try {
             if (!navigator.xr) {
-              alert('WebXR non supporté sur cet appareil');
+              alert("WebXR non supporté sur cet appareil");
               return;
             }
-            
-            const arSupported = await navigator.xr.isSessionSupported('immersive-ar');
-            const vrSupported = await navigator.xr.isSessionSupported('immersive-vr');
-            
+
+            const arSupported =
+              await navigator.xr.isSessionSupported("immersive-ar");
+            const vrSupported =
+              await navigator.xr.isSessionSupported("immersive-vr");
+
             if (arSupported) {
-              console.log('Lancement du mode AR...');
-              xrButton.textContent = 'Lancement AR...';
+              console.log("Lancement du mode AR...");
+              xrButton.textContent = "Lancement AR...";
               scene.enterAR();
             } else if (vrSupported) {
-              console.log('Lancement du mode VR...');
-              xrButton.textContent = 'Lancement VR...';
+              console.log("Lancement du mode VR...");
+              xrButton.textContent = "Lancement VR...";
               scene.enterVR();
             } else {
-              alert('Aucun mode XR supporté sur cet appareil');
+              alert("Aucun mode XR supporté sur cet appareil");
             }
           } catch (error) {
-            console.error('Erreur XR:', error);
-            alert('Erreur lors du lancement XR: ' + error.message);
-            xrButton.textContent = '🥽 ENTRER EN XR';
+            console.error("Erreur XR:", error);
+            alert("Erreur lors du lancement XR: " + error.message);
+            xrButton.textContent = "🥽 ENTRER EN XR";
           }
         });
-        
-        scene.addEventListener('enter-vr', () => {
-          xrButton.style.display = 'none';
+
+        scene.addEventListener("enter-vr", () => {
+          xrButton.style.display = "none";
         });
-        
-        scene.addEventListener('exit-vr', () => {
-          xrButton.style.display = 'block';
-          xrButton.textContent = '🥽 ENTRER EN XR';
+
+        scene.addEventListener("exit-vr", () => {
+          xrButton.style.display = "block";
+          xrButton.textContent = "🥽 ENTRER EN XR";
         });
       });
     </script>
-    
+
     <script>
-      let frameCount = 0
-      let lastTime = Date.now()
-      const errorLog = []
-      
+      let frameCount = 0;
+      let lastTime = Date.now();
+      const errorLog = [];
+
       // Capture les erreurs avec numéro de ligne
-      window.addEventListener('error', (e) => {
-        const line = e.lineno || '?'
-        const col = e.colno || '?'
-        const msg = `❌ Line ${line}:${col} - ${e.message}`
-        errorLog.unshift(msg)
-        if (errorLog.length > 15) errorLog.pop()
-        updateErrorDisplay()
-        console.error(`[${line}:${col}]`, e.message, e)
-      })
-      
+      window.addEventListener("error", (e) => {
+        const line = e.lineno || "?";
+        const col = e.colno || "?";
+        const msg = `❌ Line ${line}:${col} - ${e.message}`;
+        errorLog.unshift(msg);
+        if (errorLog.length > 15) errorLog.pop();
+        updateErrorDisplay();
+        console.error(`[${line}:${col}]`, e.message, e);
+      });
+
       // Capture les erreurs de promesse
-      window.addEventListener('unhandledrejection', (e) => {
-        const msg = `❌ Promise: ${e.reason}`
-        errorLog.unshift(msg)
-        if (errorLog.length > 15) errorLog.pop()
-        updateErrorDisplay()
-        console.error('Unhandled rejection:', e)
-      })
-      
+      window.addEventListener("unhandledrejection", (e) => {
+        const msg = `❌ Promise: ${e.reason}`;
+        errorLog.unshift(msg);
+        if (errorLog.length > 15) errorLog.pop();
+        updateErrorDisplay();
+        console.error("Unhandled rejection:", e);
+      });
+
       // Monkey-patch console.error pour capturer aussi les erreurs loggées
-      const originalError = console.error
-      console.error = function(...args) {
-        const msg = `❌ ${args.join(' ')}`
-        errorLog.unshift(msg)
-        if (errorLog.length > 15) errorLog.pop()
-        updateErrorDisplay()
-        originalError.apply(console, args)
-      }
-      
+      const originalError = console.error;
+      console.error = function (...args) {
+        const msg = `❌ ${args.join(" ")}`;
+        errorLog.unshift(msg);
+        if (errorLog.length > 15) errorLog.pop();
+        updateErrorDisplay();
+        originalError.apply(console, args);
+      };
+
       function updateErrorDisplay() {
-        const errorList = document.getElementById('error-list')
+        const errorList = document.getElementById("error-list");
         if (errorList) {
-          errorList.innerHTML = errorLog.map(e => `<div>${e}</div>`).join('')
+          errorList.innerHTML = errorLog.map((e) => `<div>${e}</div>`).join("");
         }
       }
-      
+
       function updateDebug() {
-        frameCount++
-        const now = Date.now()
-        const elapsed = now - lastTime
-        
+        frameCount++;
+        const now = Date.now();
+        const elapsed = now - lastTime;
+
         if (elapsed >= 1000) {
-          const fps = Math.round((frameCount * 1000) / elapsed)
-          const fpsEl = document.getElementById('debug-fps')
-          if (fpsEl) fpsEl.textContent = `FPS: ${fps}`
-          frameCount = 0
-          lastTime = now
+          const fps = Math.round((frameCount * 1000) / elapsed);
+          const fpsEl = document.getElementById("debug-fps");
+          if (fpsEl) fpsEl.textContent = `FPS: ${fps}`;
+          frameCount = 0;
+          lastTime = now;
         }
-        
-        requestAnimationFrame(updateDebug)
+
+        requestAnimationFrame(updateDebug);
       }
-      
-      updateDebug()
+
+      updateDebug();
     </script>
   </body>
 </html>
