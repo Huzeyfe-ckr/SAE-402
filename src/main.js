@@ -8,6 +8,7 @@ import "aframe-environment-component";
 // Import des composants personnalisés
 import "./components/bow-logic.js";
 import "./components/bow-draw-system.js";
+import "./components/bow-string.js";
 import "./components/arrow-physics.js";
 import "./components/target-behavior.js";
 import "./components/scene-mesh-handler.js";
