@@ -42,7 +42,7 @@ AFRAME.registerSystem("game-manager", {
     this.totalScore = 0;
     this.totalHits = 0;
     this.totalArrowsShot = 0;
-    this.gameTime = 10; // 10 secondes de jeu
+    this.gameTime = 60; // 60 secondes de jeu
     this.el.setAttribute("state", "gameStarted", true);
 
     // Lancer le son de fond
