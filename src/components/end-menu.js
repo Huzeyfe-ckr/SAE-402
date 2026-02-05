@@ -174,6 +174,7 @@ AFRAME.registerComponent("end-menu", {
     const buttonContainer = document.createElement("a-entity");
     buttonContainer.setAttribute("position", "0 -0.52 0.05");
     buttonContainer.id = "replay-button";
+    buttonContainer.classList.add("clickable");
 
     // Cible circulaire verte
     const target = document.createElement("a-entity");
@@ -188,6 +189,7 @@ AFRAME.registerComponent("end-menu", {
     });
     target.setAttribute("rotation", "90 0 0");
     target.setAttribute("position", "0 0 0");
+    target.classList.add("clickable");
     buttonContainer.appendChild(target);
 
     // Centre doré
@@ -203,6 +205,7 @@ AFRAME.registerComponent("end-menu", {
     });
     bullseye.setAttribute("rotation", "90 0 0");
     bullseye.setAttribute("position", "0 0 0.01");
+    bullseye.classList.add("clickable");
     buttonContainer.appendChild(bullseye);
 
     // Texte
@@ -230,6 +233,21 @@ AFRAME.registerComponent("end-menu", {
     // Stocker la référence pour la détection de collision
     this.replayButton = buttonContainer;
     this.replayButtonWorldPos = new THREE.Vector3();
+    
+    // Ajouter un écouteur d'événements pour le clic VR
+    buttonContainer.addEventListener("click", () => {
+      console.log("🖱️ Bouton cliqué !");
+      this.onReplayClick();
+    });
+    
+    // Détecter le survol du curseur/raycast
+    buttonContainer.addEventListener("mouseenter", () => {
+      target.setAttribute("material", "color", "#2a8f2a");
+    });
+    
+    buttonContainer.addEventListener("mouseleave", () => {
+      target.setAttribute("material", "color", "#1a5f1a");
+    });
   },
 
   // Méthode appelée par les flèches
