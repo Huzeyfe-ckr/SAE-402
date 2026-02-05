@@ -1,6 +1,6 @@
 AFRAME.registerComponent("bow-logic", {
   schema: {
-    arrowSpeed: { type: "number", default: 25 },
+    arrowSpeed: { type: "number", default: 45 },
     color: { type: "color", default: "#00ff00" },
     hitColor: { type: "color", default: "#ff0000" },
     // angle pour baisser/monter le tir,

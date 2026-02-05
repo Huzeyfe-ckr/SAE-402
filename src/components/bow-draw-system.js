@@ -1,9 +1,9 @@
 AFRAME.registerComponent("bow-draw-system", {
   schema: {
-    maxArrowSpeed: { type: "number", default: 30 },
-    minArrowSpeed: { type: "number", default: 10 },
-    maxDrawDistance: { type: "number", default: 0.5 }, // Distance maximale de tirage en mètres
-    minDrawDistance: { type: "number", default: 0.15 }, // Distance minimale pour tirer
+    maxArrowSpeed: { type: "number", default: 80 }, // Vitesse maximale de la flèche
+    minArrowSpeed: { type: "number", default: 8 },
+    maxDrawDistance: { type: "number", default: 0.45 }, // Distance maximale de tirage en mètres des mains
+    minDrawDistance: { type: "number", default: 0.12 }, // Distance minimale pour tirer 
     snapDistance: { type: "number", default: 0.2 }, // Distance pour "accrocher" la corde
   },
 
@@ -166,20 +166,30 @@ AFRAME.registerComponent("bow-draw-system", {
       this.data.minArrowSpeed +
       (this.data.maxArrowSpeed - this.data.minArrowSpeed) * drawRatio;
 
-    // --- CORRECTION MAJEURE : VECTEUR DE VISÉE ---
+    // --- DIRECTION SIMPLE : Copier directement l'orientation de l'arc ---
     this.leftHand.object3D.getWorldPosition(this.tempVectorLeft);
-    this.rightHand.object3D.getWorldPosition(this.tempVectorRight);
-
-    // 1. Calculer la direction : De la main droite (corde) VERS la main gauche (arc)
-    const aimDirection = new THREE.Vector3();
-    aimDirection
-      .subVectors(this.tempVectorLeft, this.tempVectorRight)
-      .normalize();
-
-    // 2. Créer une rotation (Quaternion) basée sur ce vecteur
-    // On dit à A-Frame : "Tourne l'objet pour que son avant (-Z) s'aligne sur aimDirection"
+    
+    // Utiliser directement la rotation de la main gauche (arc)
     const aimQuaternion = new THREE.Quaternion();
-    aimQuaternion.setFromUnitVectors(new THREE.Vector3(0, 0, -1), aimDirection);
+    this.leftHand.object3D.getWorldQuaternion(aimQuaternion);
+    
+
+    // La flèche doit pointer vers l'avant (-Z)
+    const compensationEuler = new THREE.Euler(
+      THREE.MathUtils.degToRad(-90),
+      THREE.MathUtils.degToRad(0),
+      THREE.MathUtils.degToRad(0),
+      'XYZ'
+    );
+    const compensationQuaternion = new THREE.Quaternion();
+    compensationQuaternion.setFromEuler(compensationEuler);
+    
+    // Appliquer la compensation à la rotation finale
+    aimQuaternion.multiply(compensationQuaternion);
+    
+    // Calculer la direction pour le log
+    const aimDirection = new THREE.Vector3(0, 0, -1);
+    aimDirection.applyQuaternion(aimQuaternion);
 
     console.log(
       `🏹 TIRE ! Distance: ${this.drawDistance.toFixed(2)}m, Puissance: ${(drawRatio * 100).toFixed(0)}%, Vitesse: ${arrowSpeed.toFixed(1)}`,

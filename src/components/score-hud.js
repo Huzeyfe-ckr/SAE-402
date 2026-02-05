@@ -62,6 +62,7 @@ AFRAME.registerComponent("score-hud", {
     // Conteneur principal
     this.hudContainer = document.createElement("a-entity");
     this.hudContainer.setAttribute("position", this.data.position);
+    this.hudContainer.setAttribute("hud-element", "");
     this.el.appendChild(this.hudContainer);
 
     // Panneau de fond (bois)

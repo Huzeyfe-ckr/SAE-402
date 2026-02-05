@@ -6,8 +6,8 @@
 
 AFRAME.registerSystem("game-manager", {
   schema: {
-    spawnInterval: { type: "number", default: 1500 }, // 1.5 secondes
-    maxTargets: { type: "number", default: 5 },
+    spawnInterval: { type: "number", default: 800 }, // 0.8 secondes
+    maxTargets: { type: "number", default: 12 },
     difficulty: { type: "string", default: "normal" }, // easy, normal, hard
   },
 
@@ -141,9 +141,9 @@ AFRAME.registerSystem("game-manager", {
     const targetId = `target-${Date.now()}`;
 
     // Position aléatoire avec distance variable
-    const x = (Math.random() - 0.5) * 8;
+    const x = (Math.random() - 0.5) * 10;
     const y = 1 + Math.random() * 2.5;
-    const z = -4 - Math.random() * 5; // Distance plus variable (4 à 9)
+    const z = -8 - Math.random() * 7; // Distance plus variable (8 à 15m)
 
     // Taille aléatoire de la cible
     const scale = 0.5 + Math.random() * 1.0; // Entre 0.5 et 1.5
