@@ -19,29 +19,40 @@
         position: fixed;
         bottom: 20px;
         right: 20px;
-        padding: 20px 40px;
-        font-size: 24px;
-        font-weight: bold;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-        border: none;
-        border-radius: 50px;
+        padding: 18px 36px;
+        font-size: 20px;
+        font-weight: 700;
+        font-family: "Georgia", serif;
+        letter-spacing: 1px;
+        background: linear-gradient(135deg, #2d1b0e 0%, #4a3728 100%);
+        color: #f4e4bc;
+        border: 3px solid #d4af37;
+        border-radius: 14px;
         cursor: pointer;
         z-index: 10000;
-        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
-        font-family: Arial, sans-serif;
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.45), inset 0 0 14px rgba(0, 0, 0, 0.35);
         transition: all 0.3s ease;
       }
       #xr-button:hover {
-        transform: scale(1.05);
-        box-shadow: 0 15px 40px rgba(0, 0, 0, 0.4);
+        transform: translateY(-2px);
+        box-shadow: 0 12px 28px rgba(0, 0, 0, 0.55), inset 0 0 18px rgba(0, 0, 0, 0.35);
       }
       #xr-button:active {
-        transform: scale(0.95);
+        transform: translateY(0);
       }
     </style>
   </head>
   <body>
+     <div id="landing-screen" class="landing-screen">
+      <div class="landing-card">
+        <div class="landing-title">Archery XR</div>
+        <div class="landing-subtitle">Épreuve d’archerie en réalité étendue</div>
+        <div class="landing-divider"></div>
+        <div class="landing-text">
+          Tendez votre arc, visez avec précision, et marquez votre légende.
+        </div>
+      </div>
+    </div>
     <button id="xr-button">🥽 ENTRER EN XR</button>
     <!-- Debug Panel -->
     <div
@@ -95,7 +106,7 @@
     <!-- State management avec aframe-state-component -->
     <a-scene
       state="score: 0; gameStarted: false"
-      webxr="referenceSpaceType: local; requiredFeatures: hand-tracking; optionalFeatures: hit-test,anchors,layers,depth-sensing,dom-overlay;"
+      webxr="referenceSpaceType: local; requiredFeatures: hand-tracking; optionalFeatures: hit-test,anchors,mesh-detection,layers,depth-sensing,dom-overlay;"
       renderer="colorManagement: true; physicallyCorrectLights: true; alpha: true; antialias: true;"
       vr-mode-ui="enabled: true"
       embedded
@@ -143,6 +154,12 @@
 
       <!-- Scene Mesh Handler pour WebXR -->
       <a-entity scene-mesh-handler></a-entity>
+
+      <!-- Surface Detector pour le spawn -->
+      <a-entity surface-detector></a-entity>
+
+      <!-- WebXR Anchor Manager -->
+      <a-entity webxr-anchor-manager></a-entity>
 
       <!-- Menu VR flottant (instructions + bouton jouer) -->
       <a-entity vr-menu></a-entity>

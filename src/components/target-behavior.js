@@ -18,13 +18,14 @@ AFRAME.registerComponent('target-behavior', {
     this.currentHp = this.data.hp
     this.hitCount = 0
     this.hitByArrows = new Set() // Tracker les flèches qui ont déjà touché cette cible
+    this.surfaceType = this.el.getAttribute('surface-type') || 'random'
     
     // Animation de mouvement si activé
     if (this.data.movable) {
       this.setupMovement()
     }
 
-    console.log(`🎯 Cible créée: ${this.data.points} points, ${this.data.hp} HP`)
+    console.log(`🎯 Cible créée: ${this.data.points} points, ${this.data.hp} HP (surface: ${this.surfaceType})`)
   },
 
   /**
@@ -61,10 +62,26 @@ AFRAME.registerComponent('target-behavior', {
       )
 
       // Calculer le multiplicateur de précision
-      // SIMPLIFIÉ : Toujours 10 points, peu importe la zone
-      const finalPoints = 10
+      let precisionMultiplier = 1.0
+      let hitZone = 'outer'
+      
+      if (distanceToCenter <= this.data.centerRadius) {
+        precisionMultiplier = 3.0 // Bullseye! x3
+        hitZone = 'bullseye'
+      } else if (distanceToCenter <= this.data.middleRadius) {
+        precisionMultiplier = 2.0 // Zone moyenne x2
+        hitZone = 'middle'
+      } else if (distanceToCenter <= this.data.outerRadius) {
+        precisionMultiplier = 1.0 // Zone extérieure x1
+        hitZone = 'outer'
+      } else {
+        precisionMultiplier = 0.5 // Touché le bord x0.5
+        hitZone = 'edge'
+      }
 
-      console.log(`💥 Cible touchée! Points: ${finalPoints} | HP restants: ${this.currentHp}`)
+      const finalPoints = Math.floor(this.data.points * precisionMultiplier)
+
+      console.log(`💥 Cible touchée! Zone: ${hitZone} | Distance: ${distanceToCenter.toFixed(3)}m | Points: ${finalPoints} | HP restants: ${this.currentHp}`)
 
       // Jouer le son de hit
       try {
@@ -78,15 +95,19 @@ AFRAME.registerComponent('target-behavior', {
       }
 
       // Animations de feedback
-      this.playHitAnimation()
-      this.showHitFeedback(localImpact, finalPoints)
+      this.playHitAnimation(hitZone)
+      this.showHitFeedback(localImpact, finalPoints, hitZone)
 
       // Émettre un événement de score au système de jeu
       try {
         console.log(`🎯 [TARGET] Émission événement target-hit avec ${finalPoints} points`)
         this.el.sceneEl.emit('target-hit', {
           points: finalPoints,
-          position: this.el.object3D.position
+          zone: hitZone,
+          multiplier: precisionMultiplier,
+          position: this.el.object3D.position,
+          distanceToCenter: distanceToCenter,
+          surfaceType: this.surfaceType
         })
         console.log(`✅ [TARGET] Événement target-hit émis avec succès`)
       } catch (e) {
@@ -102,11 +123,11 @@ AFRAME.registerComponent('target-behavior', {
     }
   },
 
-  playHitAnimation: function () {
+  playHitAnimation: function (zone) {
     // Animation simplifiée
     try {
       const originalScale = this.el.getAttribute('scale')
-      const scale = 1.2
+      const scale = zone === 'bullseye' ? 1.3 : zone === 'middle' ? 1.2 : 1.1
       
       this.el.setAttribute('scale', {
         x: originalScale.x * scale,
@@ -123,9 +144,9 @@ AFRAME.registerComponent('target-behavior', {
     }
   },
 
-  showHitFeedback: function (localPosition, points) {
+  showHitFeedback: function (localPosition, points, zone) {
     // Feedback simple
-    console.log(`Hit feedback: +${points} points`)
+    console.log(`✓ Hit feedback: +${points} points in ${zone} zone`)
   },
 
   destroy: function (lastPoints) {
@@ -163,7 +184,9 @@ AFRAME.registerComponent('target-behavior', {
       this.el.sceneEl.emit('target-destroyed', {
         points: this.data.points,
         totalHits: this.hitCount,
-        bonusPoints: Math.floor(lastPoints * 0.5)
+        bonusPoints: Math.floor(lastPoints * 0.5),
+        surfaceType: this.surfaceType,
+        targetId: this.el.id
       })
     } catch (e) {
       console.error('Event emission error:', e)
