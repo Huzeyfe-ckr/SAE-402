@@ -1,14 +1,15 @@
 /**
  * Système game-manager pour A-Frame
  * Gère le cycle de jeu, le spawn des cibles et le score global
- * Utilise aframe-state-component pour la réactivité
+ * Spawn sur surfaces réelles (hit-test) + fallback surface-detector
  */
 
 AFRAME.registerSystem("game-manager", {
   schema: {
-    spawnInterval: { type: "number", default: 800 }, // 0.8 secondes
-    maxTargets: { type: "number", default: 12 },
+    spawnInterval: { type: "number", default: 500 }, // 0.8 secondes
+    maxTargets: { type: "number", default: 3 },
     difficulty: { type: "string", default: "normal" }, // easy, normal, hard
+    requireRealSurfaces: { type: "boolean", default: true },
   },
 
   init: function () {
@@ -18,16 +19,53 @@ AFRAME.registerSystem("game-manager", {
     this.totalHits = 0;
     this.spawnTimer = null;
     this.gameRunning = false;
+    this.surfacesReady = false;
+    this.surfaceDetector = null;
+    this.sceneMeshHandler = null;
+    this.anchorManager = null;
+    this.useAnchors = false;
+    this.firstTargetSpawned = false;
 
-    // Écouter les événements du jeu
     this.el.addEventListener("target-hit", this.onTargetHit.bind(this));
-    this.el.addEventListener(
-      "target-destroyed",
-      this.onTargetDestroyed.bind(this),
-    );
+    this.el.addEventListener("target-destroyed", this.onTargetDestroyed.bind(this));
     this.el.addEventListener("arrow-shot", this.onArrowShot.bind(this));
 
-    // Écouter l'événement de démarrage depuis le menu VR
+    this.el.addEventListener("anchor-manager-ready", () => {
+      const anchorManagerEl = this.el.querySelector("[webxr-anchor-manager]");
+      if (anchorManagerEl && anchorManagerEl.components["webxr-anchor-manager"]) {
+        this.anchorManager = anchorManagerEl.components["webxr-anchor-manager"];
+        this.useAnchors = true;
+      }
+    });
+
+    this.el.addEventListener("scene-mesh-handler-ready", () => {
+      const handlerEl = this.el.querySelector("[scene-mesh-handler]");
+      if (handlerEl && handlerEl.components["scene-mesh-handler"]) {
+        this.sceneMeshHandler = handlerEl.components["scene-mesh-handler"];
+      }
+    });
+
+    this.el.addEventListener("surfaces-detected", (evt) => {
+      const realCount = Number(evt.detail?.real || 0);
+      const meshCount = Number(evt.detail?.mesh || 0);
+      const hitTestCount = Number(evt.detail?.hitTest || 0);
+      const hasRealSurface = realCount + meshCount + hitTestCount > 0;
+
+      if (this.data.requireRealSurfaces && !hasRealSurface) {
+        return;
+      }
+
+      this.surfacesReady = true;
+      const detectorEl = this.el.querySelector("[surface-detector]");
+      if (detectorEl && detectorEl.components["surface-detector"]) {
+        this.surfaceDetector = detectorEl.components["surface-detector"];
+      }
+
+      if (!this.gameRunning) {
+        this.startGame();
+      }
+    });
+
     this.el.addEventListener("start-game", () => {
       this.startGame();
     });
@@ -42,10 +80,9 @@ AFRAME.registerSystem("game-manager", {
     this.totalScore = 0;
     this.totalHits = 0;
     this.totalArrowsShot = 0;
-    this.gameTime = 60; // 60 secondes de jeu
+    this.gameTime = 60;
     this.el.setAttribute("state", "gameStarted", true);
 
-    // Lancer le son de fond
     const bgSound = document.getElementById("background-sound");
     if (bgSound) {
       bgSound.volume = 0.3;
@@ -54,15 +91,8 @@ AFRAME.registerSystem("game-manager", {
         .catch((e) => console.log("Son de fond non disponible:", e));
     }
 
-    console.log("🎮 Jeu démarré! Temps: 10s");
-
-    // Commencer le spawn automatique de cibles
     this.startTargetSpawning();
-
-    // Créer l'affichage du score
     this.createScoreDisplay();
-
-    // Démarrer le compte à rebours
     this.startCountdown();
   },
 
@@ -130,28 +160,186 @@ AFRAME.registerSystem("game-manager", {
 
   startTargetSpawning: function () {
     this.spawnTimer = setInterval(() => {
-      if (this.activeTargets.length < this.data.maxTargets) {
-        this.spawnRandomTarget();
-      }
+      if (this.activeTargets.length >= this.data.maxTargets) return;
+      if (!this.hasAvailableSurface()) return;
+      this.spawnRandomTarget();
     }, this.data.spawnInterval);
+  },
+
+  hasAvailableSurface: function () {
+    if (this.sceneMeshHandler && this.sceneMeshHandler.isHitTestActive()) {
+      const detected = this.sceneMeshHandler.getDetectedSurface();
+      if (detected && detected.isRealSurface) return true;
+    }
+
+    if (!this.surfaceDetector || !this.surfaceDetector.surfaces) return false;
+
+    const horizontal = this.surfaceDetector.surfaces.horizontal || [];
+    const vertical = this.surfaceDetector.surfaces.vertical || [];
+    const total = horizontal.length + vertical.length;
+    if (total === 0) return false;
+
+    if (!this.data.requireRealSurfaces) return true;
+
+    const realHorizontal = horizontal.filter((s) => s.isRealSurface).length;
+    const realVertical = vertical.filter((s) => s.isRealSurface).length;
+    return realHorizontal + realVertical > 0;
+  },
+
+  calculateSpawnFromHitTest: function (detectedSurface) {
+    const position = detectedSurface.position.clone
+      ? detectedSurface.position.clone()
+      : new THREE.Vector3(
+          detectedSurface.position.x,
+          detectedSurface.position.y,
+          detectedSurface.position.z,
+        );
+    const normal = detectedSurface.normal.clone
+      ? detectedSurface.normal.clone()
+      : new THREE.Vector3(
+          detectedSurface.normal.x,
+          detectedSurface.normal.y,
+          detectedSurface.normal.z,
+        );
+
+    const isCeiling = normal.y <= -0.5;
+    const isHorizontal = normal.y >= 0.5;
+
+    let surfaceType = "vertical";
+    let rotation = { x: 0, y: 0, z: 0 };
+
+    if (isHorizontal || isCeiling) {
+      surfaceType = "horizontal";
+      position.add(normal.clone().multiplyScalar(isCeiling ? 0.6 : 0.5));
+
+      const camera = this.el.sceneEl.camera;
+      if (camera) {
+        const cameraPos = camera.getWorldPosition(new THREE.Vector3());
+        const temp = new THREE.Object3D();
+        temp.position.copy(position);
+        temp.lookAt(cameraPos);
+        rotation = { x: 0, y: THREE.MathUtils.radToDeg(temp.rotation.y), z: 0 };
+        if (isCeiling) rotation.x = 180;
+      }
+    } else {
+      surfaceType = "vertical";
+      position.add(normal.clone().multiplyScalar(0.2));
+      const qAlign = new THREE.Quaternion().setFromUnitVectors(
+        new THREE.Vector3(0, 0, -1),
+        normal.clone().normalize(),
+      );
+      const eAlign = new THREE.Euler().setFromQuaternion(qAlign, "XYZ");
+      rotation = {
+        x: THREE.MathUtils.radToDeg(eAlign.x),
+        y: THREE.MathUtils.radToDeg(eAlign.y),
+        z: THREE.MathUtils.radToDeg(eAlign.z),
+      };
+    }
+
+    return {
+      position,
+      rotation,
+      surfaceType,
+      isRealSurface: true,
+      normal,
+    };
+  },
+
+  ensureFacingCamera: function (spawnData) {
+    const camera = this.el.sceneEl.camera;
+    if (!camera || !spawnData?.rotation) return;
+
+    const position = spawnData.position instanceof THREE.Vector3
+      ? spawnData.position
+      : new THREE.Vector3(
+          spawnData.position.x,
+          spawnData.position.y,
+          spawnData.position.z,
+        );
+
+    const cameraPos = camera.getWorldPosition(new THREE.Vector3());
+    const toCamera = new THREE.Vector3()
+      .subVectors(cameraPos, position)
+      .normalize();
+
+    const euler = new THREE.Euler(
+      THREE.MathUtils.degToRad(spawnData.rotation.x || 0),
+      THREE.MathUtils.degToRad(spawnData.rotation.y || 0),
+      THREE.MathUtils.degToRad(spawnData.rotation.z || 0),
+      "YXZ",
+    );
+    const forwardNegZ = new THREE.Vector3(0, 0, -1)
+      .applyEuler(euler)
+      .normalize();
+    const forwardPosZ = new THREE.Vector3(0, 0, 1)
+      .applyEuler(euler)
+      .normalize();
+
+    // Choisir l'axe qui regarde le plus la caméra, puis corriger si besoin
+    if (forwardNegZ.dot(toCamera) < forwardPosZ.dot(toCamera)) {
+      spawnData.rotation.y = (spawnData.rotation.y || 0) + 180;
+    } else if (forwardNegZ.dot(toCamera) < 0) {
+      spawnData.rotation.y = (spawnData.rotation.y || 0) + 180;
+    }
   },
 
   spawnRandomTarget: function () {
     const target = document.createElement("a-entity");
     const targetId = `target-${Date.now()}`;
 
-    // Position aléatoire avec distance variable
-    const x = (Math.random() - 0.5) * 10;
-    const y = 1 + Math.random() * 2.5;
-    const z = -8 - Math.random() * 7; // Distance plus variable (8 à 15m)
+    let spawnData = null;
 
-    // Taille aléatoire de la cible
-    const scale = 0.5 + Math.random() * 1.0; // Entre 0.5 et 1.5
+    if (this.sceneMeshHandler && this.sceneMeshHandler.isHitTestActive()) {
+      const detected = this.sceneMeshHandler.getDetectedSurface();
+      if (detected) {
+        spawnData = this.calculateSpawnFromHitTest(detected);
+      }
+    }
 
-    // Paramètres basés sur la difficulté
+    if (!spawnData && this.surfaceDetector) {
+      spawnData = this.surfaceDetector.getRandomSpawnPoint();
+    }
+
+    if (!spawnData) return;
+
+    const camera = this.el.sceneEl.camera;
+    const cameraPos = camera
+      ? camera.getWorldPosition(new THREE.Vector3())
+      : new THREE.Vector3(0, 1.6, 0);
+
+    const pos = spawnData.position instanceof THREE.Vector3
+      ? spawnData.position
+      : new THREE.Vector3(
+          spawnData.position.x,
+          spawnData.position.y,
+          spawnData.position.z,
+        );
+
+    const distance = pos.distanceTo(cameraPos);
+    if (distance < 1.5 || distance > 10) return;
+
+    const toTarget = new THREE.Vector3()
+      .subVectors(pos, cameraPos)
+      .normalize();
+    const cameraForward = new THREE.Vector3(0, 0, -1).applyQuaternion(
+      camera?.quaternion || new THREE.Quaternion(),
+    );
+    const angle = Math.acos(toTarget.dot(cameraForward)) * (180 / Math.PI);
+    const maxAngle = this.firstTargetSpawned ? 60 : 30;
+    if (angle > maxAngle) return;
+
+    this.ensureFacingCamera(spawnData);
+
+    const minDistance = 0.5;
+    for (const existing of this.activeTargets) {
+      if (!existing || !existing.object3D) continue;
+      if (existing.object3D.position.distanceTo(pos) < minDistance) return;
+    }
+
+    const scale = 0.2 + Math.random() * 0.3;
+
     let points = 10;
     let hp = 1;
-    let movable = false; // Toujours statique
 
     if (this.data.difficulty === "hard") {
       points = 20;
@@ -161,87 +349,68 @@ AFRAME.registerSystem("game-manager", {
       hp = Math.random() > 0.7 ? 2 : 1;
     }
 
-    target.id = targetId;
-    target.setAttribute("position", `${x} ${y} ${z}`);
+    if (spawnData.surfaceType === "vertical") {
+      points = Math.floor(points * 1.2);
+    }
 
-    // Ajouter le corps physique AVANT le comportement
+    target.id = targetId;
+    target.setAttribute("position", pos);
+    target.setAttribute("rotation", spawnData.rotation);
+    target.setAttribute("scale", `${scale} ${scale} ${scale}`);
+    target.setAttribute("surface-type", spawnData.surfaceType || "random");
+
     target.setAttribute("static-body", {
       shape: "cylinder",
       cylinderAxis: "z",
     });
 
     target.setAttribute("target-behavior", {
-      points: points,
-      hp: hp,
-      movable: false, // Toujours statique
+      points,
+      hp,
+      movable: false,
     });
 
     // Créer la géométrie de la cible avec taille variable
     target.innerHTML = `
-      <a-entity gltf-model="#target-model" scale="${scale} ${scale} ${scale}"></a-entity>
+      <a-entity gltf-model="#target-model"></a-entity>
     `;
 
     this.el.appendChild(target);
     this.activeTargets.push(target);
+    this.firstTargetSpawned = true;
+
+    if (this.useAnchors && this.anchorManager) {
+      setTimeout(() => {
+        this.anchorTarget(target, pos, spawnData.rotation);
+      }, 100);
+    }
 
     console.log(
-      `🎯 Nouvelle cible spawned: ${targetId} (${points}pts, ${hp}HP, statique)`,
+      `🎯 Nouvelle cible spawned: ${targetId} (${points}pts, ${hp}HP, ${spawnData.surfaceType})`,
     );
   },
 
   onTargetHit: function (evt) {
-    console.log(`🎮 [GAME-MANAGER] Événement target-hit reçu!`, evt.detail);
-    console.log(
-      `🎮 [GAME-MANAGER] AVANT calcul - this.totalScore = ${this.totalScore}`,
-    );
-
     const { points } = evt.detail;
 
-    if (!points) {
-      console.error("❌ [GAME-MANAGER] Points non définis dans evt.detail!");
-      return;
-    }
+    if (!points) return;
 
     this.totalHits++;
-
-    // Calculer le nouveau score
     const currentScore = this.totalScore;
     const newScore = currentScore + points;
-
-    console.log(
-      `📊 [GAME-MANAGER] Calcul: ${currentScore} + ${points} = ${newScore}`,
-    );
-
-    // Mettre à jour le score
     this.totalScore = newScore;
     this.el.setAttribute("state", "score", newScore);
-
-    console.log(
-      `✅ [GAME-MANAGER] APRÈS update - this.totalScore = ${this.totalScore}`,
-    );
-    console.log(`✅ [GAME-MANAGER] Total hits: ${this.totalHits}`);
-
-    // Mettre à jour l'affichage
     this.updateScoreDisplay();
   },
 
   onTargetDestroyed: function (evt) {
     const { bonusPoints } = evt.detail;
-
-    // Retirer la cible de la liste active
     this.activeTargets = this.activeTargets.filter((t) => t.parentNode);
 
-    // Ajouter les points bonus
     if (bonusPoints > 0) {
-      const currentScore = this.totalScore; // CORRECTION : utiliser this.totalScore au lieu du state
-      const newScore = currentScore + bonusPoints;
-
+      const newScore = this.totalScore + bonusPoints;
       this.totalScore = newScore;
       this.el.setAttribute("state", "score", newScore);
-
-      console.log(
-        `🎁 Bonus de destruction: +${bonusPoints} | Nouveau score: ${newScore}`,
-      );
     }
 
     this.updateScoreDisplay();
@@ -348,6 +517,31 @@ AFRAME.registerSystem("game-manager", {
 
     if (targetsEl) {
       targetsEl.textContent = this.activeTargets.length;
+    }
+  },
+
+  anchorTarget: async function (target, position, rotation) {
+    if (!this.anchorManager) return;
+
+    try {
+      const euler = new THREE.Euler(
+        THREE.MathUtils.degToRad(rotation.x || 0),
+        THREE.MathUtils.degToRad(rotation.y || 0),
+        THREE.MathUtils.degToRad(rotation.z || 0),
+        "XYZ",
+      );
+      const quaternion = new THREE.Quaternion().setFromEuler(euler);
+
+      const anchorId = await this.anchorManager.createAnchor({
+        position: new THREE.Vector3(position.x, position.y, position.z),
+        quaternion,
+      });
+
+      if (anchorId) {
+        this.anchorManager.attachToAnchor(target, anchorId);
+      }
+    } catch (error) {
+      console.log(`⚠️ Impossible d'ancrer la cible ${target.id}:`, error);
     }
   },
 
