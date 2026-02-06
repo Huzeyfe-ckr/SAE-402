@@ -6,7 +6,7 @@
 
 AFRAME.registerSystem("game-manager", {
   schema: {
-    spawnInterval: { type: "number", default: 1500 }, // 1.5 secondes
+    spawnInterval: { type: "number", default: 500 }, // 0.8 secondes
     maxTargets: { type: "number", default: 3 },
     difficulty: { type: "string", default: "normal" }, // easy, normal, hard
     requireRealSurfaces: { type: "boolean", default: true },
@@ -268,9 +268,17 @@ AFRAME.registerSystem("game-manager", {
       THREE.MathUtils.degToRad(spawnData.rotation.z || 0),
       "YXZ",
     );
-    const forward = new THREE.Vector3(0, 0, -1).applyEuler(euler).normalize();
+    const forwardNegZ = new THREE.Vector3(0, 0, -1)
+      .applyEuler(euler)
+      .normalize();
+    const forwardPosZ = new THREE.Vector3(0, 0, 1)
+      .applyEuler(euler)
+      .normalize();
 
-    if (forward.dot(toCamera) < 0) {
+    // Choisir l'axe qui regarde le plus la caméra, puis corriger si besoin
+    if (forwardNegZ.dot(toCamera) < forwardPosZ.dot(toCamera)) {
+      spawnData.rotation.y = (spawnData.rotation.y || 0) + 180;
+    } else if (forwardNegZ.dot(toCamera) < 0) {
       spawnData.rotation.y = (spawnData.rotation.y || 0) + 180;
     }
   },
@@ -348,6 +356,7 @@ AFRAME.registerSystem("game-manager", {
     target.id = targetId;
     target.setAttribute("position", pos);
     target.setAttribute("rotation", spawnData.rotation);
+    target.setAttribute("scale", `${scale} ${scale} ${scale}`);
     target.setAttribute("surface-type", spawnData.surfaceType || "random");
 
     target.setAttribute("static-body", {
@@ -363,7 +372,7 @@ AFRAME.registerSystem("game-manager", {
 
     // Créer la géométrie de la cible avec taille variable
     target.innerHTML = `
-      <a-entity gltf-model="#target-model" scale="${scale} ${scale} ${scale}"></a-entity>
+      <a-entity gltf-model="#target-model"></a-entity>
     `;
 
     this.el.appendChild(target);
