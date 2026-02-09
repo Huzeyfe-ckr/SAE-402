@@ -215,12 +215,7 @@ tick: function (time, deltaTime) {
 
     console.log(`💥 Collision: ${hitType}`);
 
-    // Si c'est une cible, appeler son composant
-    if (hitType === "target" && hitEntity.components["target-behavior"]) {
-      hitEntity.components["target-behavior"].onArrowHit(this.el, impactPoint);
-    }
-
-    // Planter la flèche à la position d'impact
+    // Planter la flèche à la position d'impact (pour tous les types)
     this.el.object3D.position.copy(impactPoint);
 
     // Ajuster position pour que la flèche dépasse de la surface
@@ -229,10 +224,18 @@ tick: function (time, deltaTime) {
       this.el.object3D.position.add(offset);
     }
 
-    // Retirer la flèche après 5 secondes
-    setTimeout(() => {
+    // Si c'est une cible, appeler son composant et faire disparaître rapidement
+    if (hitType === "target" && hitEntity.components["target-behavior"]) {
+      hitEntity.components["target-behavior"].onArrowHit(this.el, impactPoint);
+      
+      // Faire disparaître immédiatement la flèche quand elle touche une cible
       this.animateRemoval();
-    }, 5000);
+    } else {
+      // Pour les surfaces environnement, retirer la flèche après 5 secondes
+      setTimeout(() => {
+        this.animateRemoval();
+      }, 5000);
+    }
   },
 
   animateRemoval: function () {

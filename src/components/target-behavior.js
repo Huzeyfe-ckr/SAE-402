@@ -18,6 +18,7 @@ AFRAME.registerComponent('target-behavior', {
     this.currentHp = this.data.hp
     this.hitCount = 0
     this.hitByArrows = new Set() // Tracker les flèches qui ont déjà touché cette cible
+    this.arrowElements = [] // Stocker les références des flèches plantées
     this.surfaceType = this.el.getAttribute('surface-type') || 'random'
     
     // Animation de mouvement si activé
@@ -48,6 +49,9 @@ AFRAME.registerComponent('target-behavior', {
       
       // Marquer cette flèche comme ayant touché cette cible
       this.hitByArrows.add(arrowId)
+      
+      // Stocker la référence de la flèche pour la supprimer lors de la destruction
+      this.arrowElements.push(arrowEl)
 
       this.hitCount++
       this.currentHp--
@@ -151,6 +155,14 @@ AFRAME.registerComponent('target-behavior', {
 
   destroy: function (lastPoints) {
     console.log('🎉 Cible détruite!')
+    
+    // Supprimer toutes les flèches plantées dans cette cible
+    this.arrowElements.forEach(arrow => {
+      if (arrow && arrow.parentNode) {
+        arrow.parentNode.removeChild(arrow)
+      }
+    })
+    this.arrowElements = []
     
     try {
       // Animation de destruction simplifiée

@@ -143,10 +143,11 @@ AFRAME.registerComponent("scene-mesh-handler", {
       meshEntity.setAttribute("width", surface.width);
       meshEntity.setAttribute("height", surface.height);
       meshEntity.setAttribute("material", {
-        color: "#4CC3D9",
-        opacity: 0.3,
+        color: "#0000FF", // Bleu vif pour visualiser les surfaces de collision
+        opacity: 0.5,
         transparent: true,
-        wireframe: true,
+        wireframe: false,
+        side: "double"
       });
       meshEntity.setAttribute("static-body", {
         shape: "box",
