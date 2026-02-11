@@ -1,12 +1,12 @@
 /**
  * Système game-manager pour A-Frame
  * Gère le cycle de jeu, le spawn des cibles et le score global
- * Spawn sur surfaces réelles (hit-test) + fallback surface-detector
+ * Spawn sur les murs créés par wall-debug
  */
 
 AFRAME.registerSystem("game-manager", {
   schema: {
-    spawnInterval: { type: "number", default: 500 }, // 0.8 secondes
+    spawnInterval: { type: "number", default: 500 }, // 0.5 secondes
     maxTargets: { type: "number", default: 3 },
     difficulty: { type: "string", default: "normal" }, // easy, normal, hard
     requireRealSurfaces: { type: "boolean", default: true },
@@ -22,6 +22,7 @@ AFRAME.registerSystem("game-manager", {
     this.surfacesReady = false;
     this.surfaceDetector = null;
     this.sceneMeshHandler = null;
+    this.wallDebug = null; // Référence au composant wall-debug
     this.anchorManager = null;
     this.useAnchors = false;
     this.firstTargetSpawned = false;
@@ -35,6 +36,15 @@ AFRAME.registerSystem("game-manager", {
       if (anchorManagerEl && anchorManagerEl.components["webxr-anchor-manager"]) {
         this.anchorManager = anchorManagerEl.components["webxr-anchor-manager"];
         this.useAnchors = true;
+      }
+    });
+
+    // Écouter quand les murs sont prêts (wall-debug)
+    this.el.addEventListener("walls-ready", (evt) => {
+      console.log("🎮 Murs prêts pour le spawn des cibles!");
+      const wallDebugEl = this.el.querySelector("[wall-debug]");
+      if (wallDebugEl && wallDebugEl.components["wall-debug"]) {
+        this.wallDebug = wallDebugEl.components["wall-debug"];
       }
     });
 
@@ -56,6 +66,13 @@ AFRAME.registerSystem("game-manager", {
       }
 
       this.surfacesReady = true;
+      
+      // Récupérer le wall-debug s'il existe
+      const wallDebugEl = this.el.querySelector("[wall-debug]");
+      if (wallDebugEl && wallDebugEl.components["wall-debug"]) {
+        this.wallDebug = wallDebugEl.components["wall-debug"];
+      }
+      
       const detectorEl = this.el.querySelector("[surface-detector]");
       if (detectorEl && detectorEl.components["surface-detector"]) {
         this.surfaceDetector = detectorEl.components["surface-detector"];
@@ -80,7 +97,7 @@ AFRAME.registerSystem("game-manager", {
     this.totalScore = 0;
     this.totalHits = 0;
     this.totalArrowsShot = 0;
-    this.gameTime = 60;
+    this.gameTime = 1060;
     this.el.setAttribute("state", "gameStarted", true);
 
     const bgSound = document.getElementById("background-sound");
@@ -167,6 +184,12 @@ AFRAME.registerSystem("game-manager", {
   },
 
   hasAvailableSurface: function () {
+    // Priorité 1: Utiliser les murs du wall-debug
+    if (this.wallDebug && this.wallDebug.wallData && this.wallDebug.wallData.length > 0) {
+      return true;
+    }
+    
+    // Fallback: hit-test ou surface-detector
     if (this.sceneMeshHandler && this.sceneMeshHandler.isHitTestActive()) {
       const detected = this.sceneMeshHandler.getDetectedSurface();
       if (detected && detected.isRealSurface) return true;
@@ -204,11 +227,26 @@ AFRAME.registerSystem("game-manager", {
 
     const isCeiling = normal.y <= -0.5;
     const isHorizontal = normal.y >= 0.5;
+    const isVertical = Math.abs(normal.y) < 0.4;
 
     let surfaceType = "vertical";
     let rotation = { x: 0, y: 0, z: 0 };
 
-    if (isHorizontal || isCeiling) {
+    // Privilégier les murs (surfaces verticales)
+    if (isVertical) {
+      surfaceType = "vertical";
+      position.add(normal.clone().multiplyScalar(0.005));
+      const qAlign = new THREE.Quaternion().setFromUnitVectors(
+        new THREE.Vector3(0, 0, -1),
+        normal.clone().normalize(),
+      );
+      const eAlign = new THREE.Euler().setFromQuaternion(qAlign, "XYZ");
+      rotation = {
+        x: THREE.MathUtils.radToDeg(eAlign.x),
+        y: THREE.MathUtils.radToDeg(eAlign.y),
+        z: THREE.MathUtils.radToDeg(eAlign.z),
+      };
+    } else if (isHorizontal || isCeiling) {
       surfaceType = "horizontal";
       position.add(normal.clone().multiplyScalar(isCeiling ? 0.6 : 0.5));
 
@@ -221,19 +259,6 @@ AFRAME.registerSystem("game-manager", {
         rotation = { x: 0, y: THREE.MathUtils.radToDeg(temp.rotation.y), z: 0 };
         if (isCeiling) rotation.x = 180;
       }
-    } else {
-      surfaceType = "vertical";
-      position.add(normal.clone().multiplyScalar(0.2));
-      const qAlign = new THREE.Quaternion().setFromUnitVectors(
-        new THREE.Vector3(0, 0, -1),
-        normal.clone().normalize(),
-      );
-      const eAlign = new THREE.Euler().setFromQuaternion(qAlign, "XYZ");
-      rotation = {
-        x: THREE.MathUtils.radToDeg(eAlign.x),
-        y: THREE.MathUtils.radToDeg(eAlign.y),
-        z: THREE.MathUtils.radToDeg(eAlign.z),
-      };
     }
 
     return {
@@ -242,6 +267,7 @@ AFRAME.registerSystem("game-manager", {
       surfaceType,
       isRealSurface: true,
       normal,
+      isVertical,
     };
   },
 
@@ -289,13 +315,27 @@ AFRAME.registerSystem("game-manager", {
 
     let spawnData = null;
 
-    if (this.sceneMeshHandler && this.sceneMeshHandler.isHitTestActive()) {
-      const detected = this.sceneMeshHandler.getDetectedSurface();
-      if (detected) {
-        spawnData = this.calculateSpawnFromHitTest(detected);
+    // PRIORITÉ 1: Utiliser les murs du wall-debug
+    if (this.wallDebug && this.wallDebug.getRandomSpawnPoint) {
+      spawnData = this.wallDebug.getRandomSpawnPoint();
+      if (spawnData) {
+        console.log(`🎯 Spawn sur ${spawnData.wallName}`);
       }
     }
 
+    // Fallback: hit-test pour surfaces réelles
+    if (!spawnData && this.sceneMeshHandler && this.sceneMeshHandler.isHitTestActive()) {
+      const detected = this.sceneMeshHandler.getDetectedSurface();
+      if (detected) {
+        spawnData = this.calculateSpawnFromHitTest(detected);
+        // Rejeter si ce n'est pas un mur (on veut des surfaces verticales)
+        if (spawnData && !spawnData.isVertical && Math.random() < 0.7) {
+          spawnData = null; // 70% de chance de rejeter les surfaces non-verticales
+        }
+      }
+    }
+
+    // Fallback sur surface-detector
     if (!spawnData && this.surfaceDetector) {
       spawnData = this.surfaceDetector.getRandomSpawnPoint();
     }
@@ -336,7 +376,7 @@ AFRAME.registerSystem("game-manager", {
       if (existing.object3D.position.distanceTo(pos) < minDistance) return;
     }
 
-    const scale = 0.2 + Math.random() * 0.3;
+    const scale = 0.003 + Math.random() * 0.004; // Entre 0.003 et 0.007
 
     let points = 10;
     let hp = 1;
@@ -356,7 +396,6 @@ AFRAME.registerSystem("game-manager", {
     target.id = targetId;
     target.setAttribute("position", pos);
     target.setAttribute("rotation", spawnData.rotation);
-    target.setAttribute("scale", `${scale} ${scale} ${scale}`);
     target.setAttribute("surface-type", spawnData.surfaceType || "random");
 
     target.setAttribute("static-body", {
@@ -372,7 +411,7 @@ AFRAME.registerSystem("game-manager", {
 
     // Créer la géométrie de la cible avec taille variable
     target.innerHTML = `
-      <a-entity gltf-model="#target-model"></a-entity>
+      <a-entity gltf-model="#target-model" scale="${scale} ${scale} ${scale}"></a-entity>
     `;
 
     this.el.appendChild(target);

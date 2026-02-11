@@ -175,6 +175,26 @@ AFRAME.registerComponent("bow-draw-system", {
     
 
     // La flèche doit pointer vers l'avant (-Z)
+    // Vérifier que la flèche ne va pas vers l'arrière
+    const forwardDir = new THREE.Vector3(0, 0, -1);
+    forwardDir.applyQuaternion(aimQuaternion);
+    
+    // Si la flèche pointe vers l'arrière (z > 0 dans l'espace monde), corriger
+    const camera = this.el.sceneEl.camera;
+    if (camera) {
+      const cameraDir = new THREE.Vector3(0, 0, -1);
+      cameraDir.applyQuaternion(camera.quaternion);
+      
+      // Si la flèche va dans la direction opposée à la caméra, corriger
+      if (forwardDir.dot(cameraDir) < 0) {
+        console.log("⚠️ Direction arrière détectée, correction...");
+        // Inverser la direction
+        const correction = new THREE.Quaternion();
+        correction.setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI);
+        aimQuaternion.multiply(correction);
+      }
+    }
+    
     const compensationEuler = new THREE.Euler(
       THREE.MathUtils.degToRad(-90),
       THREE.MathUtils.degToRad(0),

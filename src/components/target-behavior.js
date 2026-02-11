@@ -149,12 +149,128 @@ AFRAME.registerComponent('target-behavior', {
   },
 
   showHitFeedback: function (localPosition, points, zone) {
-    // Feedback simple
-    console.log(`✓ Hit feedback: +${points} points in ${zone} zone`)
+    // Créer un texte flottant avec les points
+    try {
+      const worldPos = new THREE.Vector3();
+      this.el.object3D.getWorldPosition(worldPos);
+      
+      // Créer l'entité du texte flottant
+      const floatingText = document.createElement('a-entity');
+      floatingText.setAttribute('position', {
+        x: worldPos.x,
+        y: worldPos.y + 0.3,
+        z: worldPos.z
+      });
+      
+      // Couleur et taille selon la zone touchée
+      let color = '#FFFFFF';
+      let textSize = 0.3;
+      let prefix = '+';
+      
+      switch (zone) {
+        case 'bullseye':
+          color = '#FFD700'; // Or
+          textSize = 0.5;
+          prefix = '🎯 +';
+          break;
+        case 'middle':
+          color = '#00FF00'; // Vert
+          textSize = 0.4;
+          prefix = '✨ +';
+          break;
+        case 'outer':
+          color = '#87CEEB'; // Bleu clair
+          textSize = 0.35;
+          prefix = '+';
+          break;
+        case 'edge':
+          color = '#FFA500'; // Orange
+          textSize = 0.3;
+          prefix = '+';
+          break;
+      }
+      
+      // Texte principal avec les points
+      const textEl = document.createElement('a-text');
+      textEl.setAttribute('value', `${prefix}${points}`);
+      textEl.setAttribute('color', color);
+      textEl.setAttribute('align', 'center');
+      textEl.setAttribute('scale', `${textSize} ${textSize} ${textSize}`);
+      textEl.setAttribute('look-at', '[camera]'); // Toujours face à la caméra
+      
+      // Ajouter un fond pour meilleure lisibilité
+      textEl.setAttribute('font', 'mozillavr');
+      
+      floatingText.appendChild(textEl);
+      this.el.sceneEl.appendChild(floatingText);
+      
+      // Animation de montée et disparition
+      let elapsed = 0;
+      const duration = 1500; // 1.5 secondes
+      const startY = worldPos.y + 0.3;
+      const endY = worldPos.y + 1.2;
+      
+      const animate = () => {
+        elapsed += 16;
+        const progress = Math.min(elapsed / duration, 1);
+        
+        // Easing ease-out
+        const easeOut = 1 - Math.pow(1 - progress, 3);
+        
+        // Monter le texte
+        const newY = startY + (endY - startY) * easeOut;
+        floatingText.setAttribute('position', {
+          x: worldPos.x,
+          y: newY,
+          z: worldPos.z
+        });
+        
+        // Fade out progressif (à partir de 50%)
+        if (progress > 0.5) {
+          const fadeProgress = (progress - 0.5) * 2;
+          const opacity = 1 - fadeProgress;
+          textEl.setAttribute('opacity', opacity);
+        }
+        
+        // Scale up puis down
+        let scaleMultiplier = 1;
+        if (progress < 0.2) {
+          scaleMultiplier = 1 + (progress / 0.2) * 0.3; // Grandir de 30%
+        } else if (progress < 0.4) {
+          scaleMultiplier = 1.3 - ((progress - 0.2) / 0.2) * 0.3; // Revenir à la normale
+        }
+        
+        textEl.setAttribute('scale', `${textSize * scaleMultiplier} ${textSize * scaleMultiplier} ${textSize * scaleMultiplier}`);
+        
+        if (progress < 1) {
+          requestAnimationFrame(animate);
+        } else {
+          // Supprimer l'élément
+          if (floatingText.parentNode) {
+            floatingText.parentNode.removeChild(floatingText);
+          }
+        }
+      };
+      
+      animate();
+      
+      console.log(`✓ Hit feedback: +${points} points in ${zone} zone`);
+      
+    } catch (e) {
+      console.error('Floating text error:', e);
+      console.log(`✓ Hit feedback: +${points} points in ${zone} zone`);
+    }
   },
 
   destroy: function (lastPoints) {
     console.log('🎉 Cible détruite!')
+    
+    // Récupérer la position pour les effets visuels
+    const worldPos = new THREE.Vector3();
+    this.el.object3D.getWorldPosition(worldPos);
+    
+    // Créer l'effet de destruction (particules + texte)
+    this.createDestroyEffect(worldPos, lastPoints);
     
     // Supprimer toutes les flèches plantées dans cette cible
     this.arrowElements.forEach(arrow => {
@@ -210,6 +326,115 @@ AFRAME.registerComponent('target-behavior', {
         this.el.parentNode.removeChild(this.el)
       }
     }, 450)
+  },
+  
+  createDestroyEffect: function(worldPos, points) {
+    try {
+      // Créer un container pour l'effet
+      const effectContainer = document.createElement('a-entity');
+      effectContainer.setAttribute('position', worldPos);
+      this.el.sceneEl.appendChild(effectContainer);
+      
+      // Texte "DÉTRUIT!" avec animation
+      const destroyText = document.createElement('a-text');
+      destroyText.setAttribute('value', `💥 DÉTRUIT! +${Math.floor(points * 0.5)} BONUS`);
+      destroyText.setAttribute('color', '#FF4444');
+      destroyText.setAttribute('align', 'center');
+      destroyText.setAttribute('scale', '0.4 0.4 0.4');
+      destroyText.setAttribute('position', '0 0.5 0');
+      destroyText.setAttribute('look-at', '[camera]');
+      destroyText.setAttribute('font', 'mozillavr');
+      effectContainer.appendChild(destroyText);
+      
+      // Créer des particules qui explosent
+      const particleCount = 8;
+      const particles = [];
+      
+      for (let i = 0; i < particleCount; i++) {
+        const particle = document.createElement('a-sphere');
+        const angle = (i / particleCount) * Math.PI * 2;
+        
+        // Couleurs variées
+        const colors = ['#FFD700', '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FF8C00'];
+        const color = colors[i % colors.length];
+        
+        particle.setAttribute('radius', 0.03 + Math.random() * 0.02);
+        particle.setAttribute('color', color);
+        particle.setAttribute('position', '0 0 0');
+        particle.setAttribute('material', 'shader: flat');
+        
+        effectContainer.appendChild(particle);
+        
+        particles.push({
+          el: particle,
+          vx: Math.cos(angle) * (0.02 + Math.random() * 0.01),
+          vy: 0.02 + Math.random() * 0.02,
+          vz: Math.sin(angle) * (0.02 + Math.random() * 0.01),
+          gravity: 0.001
+        });
+      }
+      
+      // Animation des particules et du texte
+      let elapsed = 0;
+      const duration = 1200;
+      
+      const animateEffect = () => {
+        elapsed += 16;
+        const progress = Math.min(elapsed / duration, 1);
+        
+        // Animer le texte (monte et fade)
+        const textY = 0.5 + progress * 0.8;
+        destroyText.setAttribute('position', `0 ${textY} 0`);
+        
+        if (progress > 0.4) {
+          const fadeProgress = (progress - 0.4) / 0.6;
+          destroyText.setAttribute('opacity', 1 - fadeProgress);
+        }
+        
+        // Scale du texte (pop effect)
+        let textScale = 0.4;
+        if (progress < 0.15) {
+          textScale = 0.4 + (progress / 0.15) * 0.2;
+        } else if (progress < 0.3) {
+          textScale = 0.6 - ((progress - 0.15) / 0.15) * 0.2;
+        }
+        destroyText.setAttribute('scale', `${textScale} ${textScale} ${textScale}`);
+        
+        // Animer les particules
+        particles.forEach((p) => {
+          if (!p.el.parentNode) return;
+          
+          const pos = p.el.getAttribute('position');
+          p.vy -= p.gravity; // Gravité
+          
+          p.el.setAttribute('position', {
+            x: pos.x + p.vx,
+            y: pos.y + p.vy,
+            z: pos.z + p.vz
+          });
+          
+          // Fade et shrink
+          const particleOpacity = 1 - progress;
+          const particleScale = 1 - progress * 0.5;
+          p.el.setAttribute('material', 'opacity', particleOpacity);
+          p.el.setAttribute('scale', `${particleScale} ${particleScale} ${particleScale}`);
+        });
+        
+        if (progress < 1) {
+          requestAnimationFrame(animateEffect);
+        } else {
+          // Supprimer le container
+          if (effectContainer.parentNode) {
+            effectContainer.parentNode.removeChild(effectContainer);
+          }
+        }
+      };
+      
+      animateEffect();
+      
+    } catch (e) {
+      console.error('Destroy effect error:', e);
+    }
   },
 
   setupMovement: function () {

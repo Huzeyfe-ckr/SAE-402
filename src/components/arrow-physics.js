@@ -15,7 +15,7 @@ AFRAME.registerComponent("arrow-physics", {
   init: function () {
     this.hasCollided = false;
     this.lifetime = 0;
-    this.maxLifetime = 8000; // 8 secondes max
+    this.maxLifetime = 4000; // 4 secondes max
 
     // Vecteurs pour la physique
     this.velocity = new THREE.Vector3();
@@ -52,6 +52,9 @@ AFRAME.registerComponent("arrow-physics", {
 
   updateCollisionObjects: function () {
     const scene = this.el.sceneEl;
+    
+    // Réinitialiser la liste
+    this.collisionObjects = [];
 
     // Cibles uniquement
     const targets = scene.querySelectorAll("[target-behavior]");
@@ -65,9 +68,13 @@ AFRAME.registerComponent("arrow-physics", {
       }
     });
 
-    // Meshes de la scène (planes, sols, environnement, etc.)
-    const sceneMeshes = scene.querySelectorAll("[geometry]");
-    sceneMeshes.forEach((mesh) => {
+    // Surfaces de la scène (murs, sol, plafond détectés par WebXR)
+    // Chercher toutes les surfaces avec les classes appropriées
+    const sceneSurfaces = scene.querySelectorAll(".scene-mesh, .wall-debug-surface, .collidable, a-plane[geometry]");
+    
+    console.log(`🔵 DEBUG: Nombre de surfaces trouvées pour collision: ${sceneSurfaces.length}`);
+    
+    sceneSurfaces.forEach((mesh, index) => {
       // Vérifier si cet élément ou un de ses parents a l'attribut hud-element
       let isHudElement = false;
       let current = mesh;
@@ -91,16 +98,52 @@ AFRAME.registerComponent("arrow-physics", {
           entity: mesh,
           type: "environment",
         });
+        
+        const pos = mesh.getAttribute("position");
+        console.log(`🔵 Surface #${index} ajoutée pour collision: ${mesh.id || 'anonymous'} à (${pos?.x?.toFixed(2)}, ${pos?.y?.toFixed(2)}, ${pos?.z?.toFixed(2)})`);
       }
     });
-
-    console.log(
-      `🎯 ${this.collisionObjects.length} objets de collision détectés`,
-    );
+    
+    // Aussi ajouter les meshes avec geometry comme fallback
+    const geometryMeshes = scene.querySelectorAll("[geometry]");
+    geometryMeshes.forEach((mesh) => {
+      // Éviter les doublons
+      const alreadyAdded = this.collisionObjects.some(obj => obj.entity === mesh);
+      if (alreadyAdded) return;
+      
+      let isHudElement = false;
+      let current = mesh;
+      while (current && current !== scene) {
+        if (current.hasAttribute && current.hasAttribute("hud-element")) {
+          isHudElement = true;
+          break;
+        }
+        current = current.parentNode;
+      }
+      
+      if (
+        mesh.object3D &&
+        mesh !== this.el &&
+        !mesh.hasAttribute("target-behavior") &&
+        !isHudElement
+      ) {
+        this.collisionObjects.push({
+          object: mesh.object3D,
+          entity: mesh,
+          type: "environment",
+        });
+      }
+    });
   },
 
 tick: function (time, deltaTime) {
   if (this.hasCollided) return;
+
+  // Mettre à jour les objets de collision toutes les 1 seconde pour capter les nouvelles surfaces
+  if (!this.lastCollisionUpdate || time - this.lastCollisionUpdate > 1000) {
+    this.updateCollisionObjects();
+    this.lastCollisionUpdate = time;
+  }
 
   // dt en secondes
   const dt = deltaTime / 1000;
@@ -213,7 +256,14 @@ tick: function (time, deltaTime) {
       if (hitEntity) break;
     }
 
-    console.log(`💥 Collision: ${hitType}`);
+    // Log détaillé de la collision
+    const hitId = hitEntity?.id || "unknown";
+    const hitClass = hitEntity?.getAttribute?.("class") || "no-class";
+    console.log(`💥 COLLISION DÉTECTÉE!`);
+    console.log(`   Type: ${hitType}`);
+    console.log(`   Entité: ${hitId}`);
+    console.log(`   Classe: ${hitClass}`);
+    console.log(`   Point d'impact: (${impactPoint.x.toFixed(2)}, ${impactPoint.y.toFixed(2)}, ${impactPoint.z.toFixed(2)})`);
 
     // Planter la flèche à la position d'impact (pour tous les types)
     this.el.object3D.position.copy(impactPoint);
@@ -231,10 +281,10 @@ tick: function (time, deltaTime) {
       // Faire disparaître immédiatement la flèche quand elle touche une cible
       this.animateRemoval();
     } else {
-      // Pour les surfaces environnement, retirer la flèche après 5 secondes
+      // Pour les surfaces environnement, retirer la flèche après 3 secondes
       setTimeout(() => {
         this.animateRemoval();
-      }, 5000);
+      }, 3000);
     }
   },
 

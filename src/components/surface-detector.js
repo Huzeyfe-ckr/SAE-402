@@ -236,12 +236,12 @@ AFRAME.registerComponent("surface-detector", {
       this.surfaces.horizontal.length + this.surfaces.vertical.length;
     if (total === 0) return null;
 
-    const useHorizontal =
-      Math.random() < this.surfaces.horizontal.length / total;
+    // Privilégier les surfaces verticales (murs) avec 80% de chance
+    const useVertical = this.surfaces.vertical.length > 0 && Math.random() < 0.8;
 
-    return useHorizontal
-      ? this.getRandomHorizontalSpawnPoint()
-      : this.getRandomVerticalSpawnPoint();
+    return useVertical
+      ? this.getRandomVerticalSpawnPoint()
+      : this.getRandomHorizontalSpawnPoint();
   },
 
   getRandomHorizontalSpawnPoint: function () {

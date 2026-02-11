@@ -17,6 +17,8 @@ import "./components/webxr-anchor-manager.js";
 import "./components/score-hud.js";
 import "./components/vr-menu.js";
 import "./components/end-menu.js";
+import "./components/room-scanner.js";
+import "./components/wall-debug.js";
 
 // Import des systèmes
 import "./systems/game-manager.js";

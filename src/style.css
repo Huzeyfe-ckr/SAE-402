@@ -92,10 +92,17 @@ a-scene {
   inset: 0;
   display: grid;
   place-items: center;
-  background: radial-gradient(1200px 600px at 50% 30%, rgba(255, 244, 214, 0.35), rgba(10, 8, 6, 0.9)),
-              linear-gradient(180deg, rgba(15, 12, 8, 0.85), rgba(5, 4, 3, 0.95));
+  background: url('/image/bg.jpeg') center/cover no-repeat;
   z-index: 1;
   transition: opacity 0.4s ease, visibility 0.4s ease;
+}
+
+.landing-screen::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(1200px 600px at 50% 30%, rgba(0, 0, 0, 0.3), rgba(10, 8, 6, 0.7));
+  z-index: -1;
 }
 
 .landing-screen.hidden {

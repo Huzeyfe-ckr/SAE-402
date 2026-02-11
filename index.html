@@ -106,7 +106,7 @@
     <!-- State management avec aframe-state-component -->
     <a-scene
       state="score: 0; gameStarted: false"
-      webxr="referenceSpaceType: local; requiredFeatures: hand-tracking; optionalFeatures: hit-test,anchors,mesh-detection,layers,depth-sensing,dom-overlay;"
+      webxr="referenceSpaceType: local; requiredFeatures: hand-tracking; optionalFeatures: hit-test,anchors,plane-detection,mesh-detection,layers,depth-sensing,dom-overlay;"
       renderer="colorManagement: true; physicallyCorrectLights: true; alpha: true; antialias: true;"
       vr-mode-ui="enabled: true"
       embedded
@@ -125,7 +125,7 @@
         ></audio>
         <audio
           id="hit-sound"
-          src="/son/arrow.mp3"
+          src="/son/arrow.wav"
           crossorigin="anonymous"
         ></audio>
         <audio
@@ -155,24 +155,27 @@
       <!-- Scene Mesh Handler pour WebXR -->
       <a-entity scene-mesh-handler></a-entity>
 
+      <!-- Wall Debug - Salle carrée avec 4 murs
+           roomSize: distance du centre aux murs (ajustez selon votre salle réelle)
+           wallHeight: hauteur des murs
+           floorY: hauteur du sol (0 = niveau du sol) -->
+      <a-entity wall-debug="enabled: true; wallColor: #0066FF; wallOpacity: 0.7; roomSize: 2.5; wallHeight: 2.5; floorY: 0"></a-entity>
+
       <!-- Surface Detector pour le spawn -->
       <a-entity surface-detector></a-entity>
 
       <!-- WebXR Anchor Manager -->
       <a-entity webxr-anchor-manager></a-entity>
 
+      <!-- Room Scanner pour scan initial -->
+      <a-entity room-scanner></a-entity>
+
       <!-- Menu VR flottant (instructions + bouton jouer) -->
       <a-entity vr-menu></a-entity>
 
       <!-- Cible avec comportement -->
-      <a-entity
-        id="target-1"
-        position="0 1.5 -5"
-        rotation="0 0 0"
-        target-behavior="points: 10; hp: 3; movable: false"
-      >
-        <a-entity gltf-model="#target-model" scale="1 1 1"></a-entity>
-      </a-entity>
+        <a-entity gltf-model="#target-model" scale="0.005 0.005 0.005"></a-entity>
+      
 
       <!-- Cible statique -->
       <a-entity
@@ -180,7 +183,7 @@
         position="-2 1.5 -6"
         target-behavior="points: 20; hp: 2; movable: false"
       >
-        <a-entity gltf-model="#target-model" scale="1 1 1"></a-entity>
+        <a-entity gltf-model="#target-model" scale="0.005 0.005 0.005"></a-entity>
       </a-entity>
 
       <!-- Caméra avec contrôles VR -->
