@@ -69,10 +69,12 @@ AFRAME.registerComponent("arrow-physics", {
     });
 
     // Surfaces de la scène (murs, sol, plafond détectés par WebXR)
-    // Chercher toutes les surfaces avec les classes appropriées
-    const sceneSurfaces = scene.querySelectorAll(".scene-mesh, .wall-debug-surface, .collidable, a-plane[geometry]");
+    // Chercher toutes les surfaces avec les classes appropriées, y compris arrow-collidable
+    const sceneSurfaces = scene.querySelectorAll(".scene-mesh, .wall-debug-surface, .collidable, .arrow-collidable, a-plane[geometry], [id^='webxr-wall'], [id^='debug-wall'], [id^='debug-floor'], [id^='debug-ceiling']");
     
-    console.log(`🔵 DEBUG: Nombre de surfaces trouvées pour collision: ${sceneSurfaces.length}`);
+    if (this.collisionObjects.length < 10) { // Éviter le spam de logs
+      console.log(`🔵 DEBUG: Nombre de surfaces trouvées pour collision: ${sceneSurfaces.length}`);
+    }
     
     sceneSurfaces.forEach((mesh, index) => {
       // Vérifier si cet élément ou un de ses parents a l'attribut hud-element
@@ -220,12 +222,29 @@ tick: function (time, deltaTime) {
   this.raycaster.set(currentPos, rayDir);
   this.raycaster.far = Math.max(rayDistance * 1.2, 0.5); // Minimum 0.5m pour détecter les collisions proches
 
+  // Récupérer les mesh 3D directement pour le raycaster
+  const meshesToCheck = [];
+  this.collisionObjects.forEach((obj) => {
+    if (obj.object) {
+      // Récupérer le mesh enfant s'il existe (pour a-plane)
+      obj.object.traverse((child) => {
+        if (child.isMesh) {
+          child.userData.collisionEntity = obj.entity;
+          child.userData.collisionType = obj.type;
+          meshesToCheck.push(child);
+        }
+      });
+      // Ajouter aussi l'objet parent au cas où
+      meshesToCheck.push(obj.object);
+    }
+  });
+
   // Détecter les intersections via raycaster
-  const allObjects = this.collisionObjects.map((obj) => obj.object);
-  const intersects = this.raycaster.intersectObjects(allObjects, true);
+  const intersects = this.raycaster.intersectObjects(meshesToCheck, true);
 
   if (intersects.length > 0 && intersects[0].distance <= rayDistance * 1.5) {
     // Collision détectée via raycaster !
+    console.log(`🔵 Raycaster hit: ${intersects[0].object.name || 'mesh'} à distance ${intersects[0].distance.toFixed(3)}`);
     this.handleCollision(intersects[0]);
   } else {
     // FALLBACK: Vérification par distance pour les cibles (plus fiable avec les modèles GLTF)
@@ -247,6 +266,68 @@ tick: function (time, deltaTime) {
             point: arrowWorldPos.clone(),
             object: collisionObj.object,
             distance: distance
+          };
+          this.handleCollision(fakeIntersection);
+          return;
+        }
+      }
+    }
+    
+    // FALLBACK MUR: Utiliser wallData de wall-debug pour les collisions précises
+    const wallDebugEl = this.el.sceneEl.querySelector('[wall-debug]');
+    if (wallDebugEl && wallDebugEl.components['wall-debug']) {
+      const wallData = wallDebugEl.components['wall-debug'].wallData || [];
+      
+      for (let wall of wallData) {
+        // Ignorer sol et plafond (ils sont déjà gérés par le raycaster)
+        if (wall.isFloor || wall.isCeiling) continue;
+        
+        const wallWorldPos = wall.position.clone();
+        const wallNormal = wall.normal.clone();
+        
+        // Calculer la distance perpendiculaire au plan du mur
+        const toArrow = arrowWorldPos.clone().sub(wallWorldPos);
+        const perpDistance = toArrow.dot(wallNormal);
+        
+        // On veut détecter quand la flèche traverse le plan (perpDistance proche de 0)
+        // et quand elle vient du bon côté (le côté où la normale pointe)
+        const absPerpDistance = Math.abs(perpDistance);
+        
+        // Vérifier si on est dans les limites du mur
+        const wallWidth = wall.width || 4;
+        const wallHeight = wall.height || 2.5;
+        
+        // Calculer le vecteur "droite" du mur (perpendiculaire à la normale et à Y)
+        const wallUp = new THREE.Vector3(0, 1, 0);
+        const wallRight = new THREE.Vector3().crossVectors(wallUp, wallNormal).normalize();
+        
+        // Position relative sur le mur
+        const localX = Math.abs(toArrow.dot(wallRight));
+        const localY = toArrow.y;
+        
+        // Position Y du centre du mur
+        const wallCenterY = wallWorldPos.y;
+        const relativeY = Math.abs(localY);
+        
+        // Debug pour comprendre les valeurs
+        if (absPerpDistance < 1.0 && localX < wallWidth && relativeY < wallHeight) {
+          console.log(`🔍 Mur ${wall.name}: perpDist=${absPerpDistance.toFixed(3)}, localX=${localX.toFixed(2)}, relY=${relativeY.toFixed(2)}`);
+        }
+        
+        // Collision si proche du plan ET dans les limites du mur
+        // Distance de 0.5m pour être sûr de détecter
+        if (absPerpDistance < 0.5 && localX < wallWidth / 2 && relativeY < wallHeight / 2) {
+          console.log(`🧱 COLLISION MUR WebXR! ${wall.name} - perpDistance: ${absPerpDistance.toFixed(3)}m`);
+          
+          // Point d'impact sur le plan du mur
+          const impactPoint = arrowWorldPos.clone();
+          impactPoint.sub(wallNormal.clone().multiplyScalar(perpDistance));
+          
+          const fakeIntersection = {
+            point: impactPoint,
+            object: wall.entity?.object3D,
+            distance: absPerpDistance,
+            face: { normal: wallNormal.clone().negate() }
           };
           this.handleCollision(fakeIntersection);
           return;
@@ -324,10 +405,18 @@ tick: function (time, deltaTime) {
     // Planter la flèche à la position d'impact (pour tous les types)
     this.el.object3D.position.copy(impactPoint);
 
-    // Ajuster position pour que la flèche dépasse de la surface
+    // Ajuster position pour que la flèche dépasse légèrement de la surface (plantée)
     if (intersection.face && intersection.face.normal) {
-      const offset = intersection.face.normal.clone().multiplyScalar(0.1);
+      // Reculer la flèche dans le sens opposé à la normale (pour qu'elle pénètre dans le mur)
+      const offset = intersection.face.normal.clone().multiplyScalar(-0.15);
       this.el.object3D.position.add(offset);
+      console.log(`🔵 Flèche plantée avec normal offset`);
+    } else {
+      // Fallback: utiliser la direction de la vélocité pour planter la flèche
+      const velocityDir = this.velocity.clone().normalize();
+      const offset = velocityDir.multiplyScalar(0.1);
+      this.el.object3D.position.add(offset);
+      console.log(`🔵 Flèche plantée avec velocity offset`);
     }
 
     // Si c'est une cible, appeler son composant
@@ -338,11 +427,24 @@ tick: function (time, deltaTime) {
       // La flèche sera supprimée par le composant target-behavior lors de la destruction
       // Ne pas appeler animateRemoval() ici pour éviter la double suppression
     } else {
-      console.log('🔵 Pas une cible ou composant manquant, suppression de la flèche après 3s');
-      // Pour les surfaces environnement, retirer la flèche après 3 secondes
+      // Surface environnement (mur, sol, plafond)
+      console.log('🏹 Flèche plantée dans:', hitId || 'surface');
+      
+      // Déterminer le temps de disparition selon le type de surface
+      let removeDelay = 5000; // 5 secondes par défaut pour les murs
+      
+      if (hitClass && (hitClass.includes('floor') || hitClass.includes('sol'))) {
+        removeDelay = 3000; // 3 secondes pour le sol
+      } else if (hitClass && (hitClass.includes('ceiling') || hitClass.includes('plafond'))) {
+        removeDelay = 3000; // 3 secondes pour le plafond
+      }
+      
+      console.log(`⏰ Flèche sera retirée dans ${removeDelay/1000}s`);
+      
+      // Retirer la flèche après le délai
       setTimeout(() => {
         this.animateRemoval();
-      }, 3000);
+      }, removeDelay);
     }
   },
 
