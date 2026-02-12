@@ -398,25 +398,32 @@ AFRAME.registerSystem("game-manager", {
     target.setAttribute("rotation", spawnData.rotation);
     target.setAttribute("surface-type", spawnData.surfaceType || "random");
 
-    target.setAttribute("static-body", {
-      shape: "cylinder",
-      cylinderAxis: "z",
-    });
+    // NE PAS utiliser static-body car ça bloque le mouvement
+    // Les collisions sont gérées par arrow-physics
 
-    target.setAttribute("target-behavior", {
-      points,
-      hp,
-      movable: false,
-    });
-
-    // Créer la géométrie de la cible avec taille variable
+    // Créer la géométrie de la cible AVANT d'ajouter target-behavior
     target.innerHTML = `
       <a-entity gltf-model="#target-model" scale="${scale} ${scale} ${scale}"></a-entity>
     `;
 
+    // IMPORTANT: Ajouter l'élément au DOM AVANT d'ajouter target-behavior
+    // pour que tick() soit appelé correctement
     this.el.appendChild(target);
     this.activeTargets.push(target);
     this.firstTargetSpawned = true;
+
+    // Les oiseaux volent toujours (movable: true)
+    // Ajouter target-behavior APRÈS l'ajout au DOM
+    target.setAttribute("target-behavior", {
+      points,
+      hp,
+      movable: true,
+      flySpeed: 1.0 + Math.random() * 1.0, // Vitesse entre 1.0 et 2.0
+      flyRadius: 2.0 + Math.random() * 2.0, // Rayon entre 2.0 et 4.0
+      flyHeight: 0.3 + Math.random() * 0.4 // Variation hauteur entre 0.3 et 0.7
+    });
+
+    console.log(`🦅 Oiseau spawné avec movable=true, flySpeed=${target.getAttribute('target-behavior').flySpeed}`);
 
     if (this.useAnchors && this.anchorManager) {
       setTimeout(() => {

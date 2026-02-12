@@ -2,13 +2,18 @@
  * Composant target-behavior pour A-Frame
  * Gère les HP, le calcul de précision basé sur la distance au centre
  * et les animations de hit/destruction
+ * 
+ * NOUVEAU: Les oiseaux volent autour de la zone après spawn
  */
 
 AFRAME.registerComponent('target-behavior', {
   schema: {
     points: { type: 'number', default: 10 },
     hp: { type: 'number', default: 1 },
-    movable: { type: 'boolean', default: false },
+    movable: { type: 'boolean', default: true }, // Activé par défaut pour les oiseaux
+    flySpeed: { type: 'number', default: 1.5 }, // Vitesse de vol (m/s)
+    flyRadius: { type: 'number', default: 3 }, // Rayon de la zone de vol
+    flyHeight: { type: 'number', default: 0.5 }, // Variation de hauteur pendant le vol
     centerRadius: { type: 'number', default: 0.1 }, // Rayon du centre (bullseye)
     middleRadius: { type: 'number', default: 0.3 }, // Rayon moyen
     outerRadius: { type: 'number', default: 0.5 }   // Rayon extérieur
@@ -21,12 +26,249 @@ AFRAME.registerComponent('target-behavior', {
     this.arrowElements = [] // Stocker les références des flèches plantées
     this.surfaceType = this.el.getAttribute('surface-type') || 'random'
     
-    // Animation de mouvement si activé
-    if (this.data.movable) {
-      this.setupMovement()
-    }
+    // Variables pour le vol
+    this.isFlying = false
+    this.flightTime = 0
+    this.startPosition = null
+    this.flightCenter = null
+    this.flightPhase = Math.random() * Math.PI * 2 // Phase aléatoire pour désynchroniser les oiseaux
+    this.flightDirection = Math.random() > 0.5 ? 1 : -1 // Sens de rotation
+    this.verticalOffset = 0
+    this.roomBounds = null
+    this.flyStartDelay = 500 + Math.random() * 1000 // Délai avant le vol
+    this.initTime = Date.now()
+    this.lastTickTime = Date.now()
+    this.tickInterval = null
+    
+    console.log(`🐦 Oiseau créé: ${this.data.points} points, ${this.data.hp} HP, movable=${this.data.movable}`)
+    
+    // BACKUP: Si tick() n'est pas appelé par A-Frame, utiliser setInterval
+    // Vérifier après 2 secondes si tick a été appelé
+    const self = this
+    setTimeout(() => {
+      if (!self.tickLogged && self.data.movable) {
+        console.log(`⚠️ tick() pas appelé après 2s, activation du backup interval pour ${self.el.id}`)
+        self.startBackupInterval()
+      }
+    }, 2000)
+  },
 
-    console.log(`🎯 Cible créée: ${this.data.points} points, ${this.data.hp} HP (surface: ${this.surfaceType})`)
+  /**
+   * Démarre le vol de l'oiseau
+   */
+  startFlying: function () {
+    if (this.isFlying) return
+    if (!this.el.object3D) return
+    
+    // Récupérer la position initiale
+    const worldPos = new THREE.Vector3()
+    this.el.object3D.getWorldPosition(worldPos)
+    this.startPosition = worldPos.clone()
+    
+    // Le centre de vol est la position du joueur (caméra)
+    const camera = this.el.sceneEl.camera
+    if (camera) {
+      this.flightCenter = new THREE.Vector3()
+      camera.getWorldPosition(this.flightCenter)
+      this.flightCenter.y = worldPos.y // Garder la même hauteur de base
+    } else {
+      this.flightCenter = worldPos.clone()
+    }
+    
+    // Récupérer les limites de la pièce depuis wall-debug
+    const wallDebugEl = this.el.sceneEl.querySelector('[wall-debug]')
+    if (wallDebugEl && wallDebugEl.components['wall-debug']) {
+      const wallData = wallDebugEl.components['wall-debug'].wallData || []
+      this.calculateRoomBounds(wallData)
+    } else {
+      // Limites par défaut si pas de wall-debug
+      this.roomBounds = {
+        minX: -4, maxX: 4,
+        minY: 0.5, maxY: 2.5,
+        minZ: -4, maxZ: 4
+      }
+    }
+    
+    this.isFlying = true
+    this.flightTime = 0
+    
+    console.log(`🦅 Oiseau EN VOL! Position: (${worldPos.x.toFixed(2)}, ${worldPos.y.toFixed(2)}, ${worldPos.z.toFixed(2)})`)
+  },
+
+  /**
+   * Calcule les limites de la pièce pour garder l'oiseau dans la zone
+   */
+  calculateRoomBounds: function (wallData) {
+    if (!wallData || wallData.length === 0) {
+      // Limites par défaut
+      this.roomBounds = {
+        minX: -4, maxX: 4,
+        minY: 0.5, maxY: 2.5,
+        minZ: -4, maxZ: 4
+      }
+      return
+    }
+    
+    let minX = Infinity, maxX = -Infinity
+    let minZ = Infinity, maxZ = -Infinity
+    let minY = 0.5, maxY = 2.5
+    
+    wallData.forEach(wall => {
+      if (wall.isFloor) {
+        minY = wall.position.y + 0.3 // Un peu au-dessus du sol
+      } else if (wall.isCeiling) {
+        maxY = wall.position.y - 0.3 // Un peu en dessous du plafond
+      } else {
+        // C'est un mur
+        const pos = wall.position
+        const halfWidth = (wall.width || 2) / 2
+        
+        minX = Math.min(minX, pos.x - halfWidth)
+        maxX = Math.max(maxX, pos.x + halfWidth)
+        minZ = Math.min(minZ, pos.z - halfWidth)
+        maxZ = Math.max(maxZ, pos.z + halfWidth)
+      }
+    })
+    
+    // Réduire un peu les limites pour éviter les collisions avec les murs
+    const margin = 0.5
+    this.roomBounds = {
+      minX: minX === Infinity ? -4 : minX + margin,
+      maxX: maxX === -Infinity ? 4 : maxX - margin,
+      minY: minY,
+      maxY: maxY,
+      minZ: minZ === Infinity ? -4 : minZ + margin,
+      maxZ: maxZ === -Infinity ? 4 : maxZ - margin
+    }
+    
+    console.log(`🏠 Limites de vol: X[${this.roomBounds.minX.toFixed(1)}, ${this.roomBounds.maxX.toFixed(1)}] Y[${this.roomBounds.minY.toFixed(1)}, ${this.roomBounds.maxY.toFixed(1)}] Z[${this.roomBounds.minZ.toFixed(1)}, ${this.roomBounds.maxZ.toFixed(1)}]`)
+  },
+
+  /**
+   * Met à jour la position de l'oiseau en vol (appelé chaque frame)
+   */
+  tick: function (time, deltaTime) {
+    // Debug: afficher une fois que tick est appelé
+    if (!this.tickLogged) {
+      console.log(`🔄 tick() appelé pour ${this.el.id}, movable=${this.data.movable}, isFlying=${this.isFlying}`)
+      this.tickLogged = true
+    }
+    
+    // Déléguer à updateFlight() - même logique que le backup interval
+    this.updateFlight(time, deltaTime)
+  },
+
+  /**
+   * Arrête le vol (appelé quand l'oiseau est touché)
+   */
+  stopFlying: function () {
+    this.isFlying = false
+    if (this.tickInterval) {
+      clearInterval(this.tickInterval)
+      this.tickInterval = null
+    }
+  },
+
+  /**
+   * Backup: Démarre un interval si tick() n'est pas appelé par A-Frame
+   */
+  startBackupInterval: function () {
+    if (this.tickInterval) return // Déjà démarré
+    
+    const self = this
+    this.lastTickTime = Date.now()
+    
+    this.tickInterval = setInterval(() => {
+      const now = Date.now()
+      const deltaTime = now - self.lastTickTime
+      self.lastTickTime = now
+      
+      // Appeler la logique de tick manuellement
+      self.updateFlight(now, deltaTime)
+    }, 16) // ~60fps
+    
+    console.log(`✅ Backup interval démarré pour ${this.el.id}`)
+  },
+
+  /**
+   * Logique de vol extraite pour pouvoir être appelée par tick() ou interval
+   */
+  updateFlight: function (time, deltaTime) {
+    // Vérifier si on doit démarrer le vol (après le délai)
+    if (this.data.movable && !this.isFlying && this.initTime) {
+      const elapsed = Date.now() - this.initTime
+      if (elapsed >= this.flyStartDelay) {
+        console.log(`🕐 Délai écoulé (${elapsed}ms), démarrage du vol pour ${this.el.id}...`)
+        this.startFlying()
+      }
+      return
+    }
+    
+    if (!this.isFlying || !this.flightCenter || !this.startPosition) return
+    
+    // S'assurer que deltaTime est valide
+    if (!deltaTime || deltaTime <= 0 || deltaTime > 1000) {
+      deltaTime = 16
+    }
+    
+    const dt = deltaTime / 1000
+    this.flightTime += dt
+    
+    // Mouvement circulaire/elliptique avec variation
+    const speed = this.data.flySpeed
+    const radius = this.data.flyRadius
+    const heightVar = this.data.flyHeight
+    
+    // Angle de rotation autour du centre
+    const baseAngle = this.flightPhase + this.flightTime * speed * 0.5 * this.flightDirection
+    const wobble = Math.sin(this.flightTime * 2) * 0.3
+    const angle = baseAngle + wobble
+    
+    // Calcul de la nouvelle position
+    const radiusX = radius * (1 + Math.sin(this.flightTime * 0.7) * 0.3)
+    const radiusZ = radius * (1 + Math.cos(this.flightTime * 0.5) * 0.2)
+    
+    let newX = this.flightCenter.x + Math.cos(angle) * radiusX
+    let newZ = this.flightCenter.z + Math.sin(angle) * radiusZ
+    
+    // Variation de hauteur
+    const baseY = this.startPosition.y
+    let newY = baseY + Math.sin(this.flightTime * 1.5) * heightVar
+    
+    // Appliquer les limites de la pièce
+    if (this.roomBounds) {
+      newX = Math.max(this.roomBounds.minX, Math.min(this.roomBounds.maxX, newX))
+      newY = Math.max(this.roomBounds.minY, Math.min(this.roomBounds.maxY, newY))
+      newZ = Math.max(this.roomBounds.minZ, Math.min(this.roomBounds.maxZ, newZ))
+    }
+    
+    // Appliquer la nouvelle position - UTILISER setAttribute pour A-Frame
+    this.el.setAttribute('position', { x: newX, y: newY, z: newZ })
+    
+    // Debug: log périodique
+    if (!this.lastPosLog2 || this.flightTime - this.lastPosLog2 > 2) {
+      console.log(`🦅 Vol: pos=(${newX.toFixed(2)}, ${newY.toFixed(2)}, ${newZ.toFixed(2)})`)
+      this.lastPosLog2 = this.flightTime
+    }
+    
+    // Orienter l'oiseau - UTILISER setAttribute pour A-Frame
+    const velocity = new THREE.Vector3(
+      -Math.sin(angle) * speed * this.flightDirection,
+      Math.cos(this.flightTime * 1.5) * heightVar * 1.5,
+      Math.cos(angle) * speed * this.flightDirection
+    )
+    
+    if (velocity.lengthSq() > 0.001) {
+      const targetAngleY = Math.atan2(velocity.x, velocity.z) * (180 / Math.PI)
+      const pitchAngle = Math.atan2(velocity.y, Math.sqrt(velocity.x * velocity.x + velocity.z * velocity.z)) * (180 / Math.PI)
+      const bankAngle = Math.sin(this.flightTime * speed * 0.5) * 0.2 * (180 / Math.PI)
+      
+      this.el.setAttribute('rotation', {
+        x: -pitchAngle * 0.3,
+        y: targetAngleY,
+        z: bankAngle * this.flightDirection
+      })
+    }
   },
 
   /**
@@ -35,6 +277,9 @@ AFRAME.registerComponent('target-behavior', {
    */
   onArrowHit: function (arrowEl, impactPoint) {
     console.log('🔵 onArrowHit appelé!')
+    
+    // Arrêter le vol quand touché
+    this.stopFlying()
     
     try {
       if (!impactPoint) {
@@ -491,6 +736,11 @@ AFRAME.registerComponent('target-behavior', {
     if (this.moveInterval) {
       clearInterval(this.moveInterval)
       this.moveInterval = null
+    }
+    // Nettoyer l'intervalle de vol backup
+    if (this.tickInterval) {
+      clearInterval(this.tickInterval)
+      this.tickInterval = null
     }
   }
 })
