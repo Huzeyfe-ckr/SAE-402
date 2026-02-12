@@ -218,16 +218,42 @@ tick: function (time, deltaTime) {
   // Préparer le raycaster à partir de la position courante dans la direction du déplacement
   const rayDir = displacement.lengthSq() > 0 ? displacement.clone().normalize() : this.velocity.clone().normalize();
   this.raycaster.set(currentPos, rayDir);
-  this.raycaster.far = Math.max(rayDistance * 1.2, 0.001);
+  this.raycaster.far = Math.max(rayDistance * 1.2, 0.5); // Minimum 0.5m pour détecter les collisions proches
 
-  // Détecter les intersections
+  // Détecter les intersections via raycaster
   const allObjects = this.collisionObjects.map((obj) => obj.object);
   const intersects = this.raycaster.intersectObjects(allObjects, true);
 
-  if (intersects.length > 0 && intersects[0].distance <= rayDistance) {
-    // Collision détectée !
+  if (intersects.length > 0 && intersects[0].distance <= rayDistance * 1.5) {
+    // Collision détectée via raycaster !
     this.handleCollision(intersects[0]);
   } else {
+    // FALLBACK: Vérification par distance pour les cibles (plus fiable avec les modèles GLTF)
+    const arrowWorldPos = new THREE.Vector3();
+    this.el.object3D.getWorldPosition(arrowWorldPos);
+    
+    for (let collisionObj of this.collisionObjects) {
+      if (collisionObj.type === "target" && collisionObj.entity && collisionObj.entity.object3D) {
+        const targetWorldPos = new THREE.Vector3();
+        collisionObj.entity.object3D.getWorldPosition(targetWorldPos);
+        
+        const distance = arrowWorldPos.distanceTo(targetWorldPos);
+        const hitRadius = 0.5; // Rayon de collision de la cible
+        
+        if (distance < hitRadius) {
+          console.log(`🎯 COLLISION PAR DISTANCE! Distance: ${distance.toFixed(3)}m`);
+          // Créer un objet intersection simulé
+          const fakeIntersection = {
+            point: arrowWorldPos.clone(),
+            object: collisionObj.object,
+            distance: distance
+          };
+          this.handleCollision(fakeIntersection);
+          return;
+        }
+      }
+    }
+    
     // Pas de collision, appliquer le déplacement
     this.el.object3D.position.add(displacement);
   }
@@ -239,21 +265,51 @@ tick: function (time, deltaTime) {
 
     const impactPoint = intersection.point;
 
-    // Trouver l'entité touchée
+    // Trouver l'entité touchée en remontant la hiérarchie THREE.js
     let hitEntity = null;
     let hitType = "environment";
 
-    for (let collisionObj of this.collisionObjects) {
-      let current = intersection.object;
-      while (current) {
-        if (current === collisionObj.object) {
-          hitEntity = collisionObj.entity;
-          hitType = collisionObj.type;
+    // Méthode améliorée : parcourir la hiérarchie THREE.js pour trouver l'entité A-Frame
+    let currentObj = intersection.object;
+    while (currentObj) {
+      // Vérifier si cet objet THREE.js est lié à une entité A-Frame
+      if (currentObj.el) {
+        const entity = currentObj.el;
+        // Vérifier si c'est une cible
+        if (entity.hasAttribute && entity.hasAttribute('target-behavior')) {
+          hitEntity = entity;
+          hitType = "target";
+          console.log('🎯 Cible trouvée via hiérarchie THREE.js:', entity.id || 'anonymous');
           break;
         }
-        current = current.parent;
+        // Sinon vérifier si c'est un environnement
+        if (!hitEntity) {
+          hitEntity = entity;
+          hitType = "environment";
+        }
       }
-      if (hitEntity) break;
+      currentObj = currentObj.parent;
+    }
+
+    // Fallback : chercher dans notre liste de collision
+    if (!hitEntity || hitType !== "target") {
+      for (let collisionObj of this.collisionObjects) {
+        if (collisionObj.type === "target") {
+          // Vérifier si l'objet intersecté est un descendant de cette cible
+          let checkObj = intersection.object;
+          while (checkObj) {
+            if (checkObj === collisionObj.object || 
+                (collisionObj.object.children && this.isDescendant(checkObj, collisionObj.object))) {
+              hitEntity = collisionObj.entity;
+              hitType = "target";
+              console.log('🎯 Cible trouvée via fallback:', hitEntity.id || 'anonymous');
+              break;
+            }
+            checkObj = checkObj.parent;
+          }
+          if (hitType === "target") break;
+        }
+      }
     }
 
     // Log détaillé de la collision
@@ -274,13 +330,15 @@ tick: function (time, deltaTime) {
       this.el.object3D.position.add(offset);
     }
 
-    // Si c'est une cible, appeler son composant et faire disparaître rapidement
-    if (hitType === "target" && hitEntity.components["target-behavior"]) {
+    // Si c'est une cible, appeler son composant
+    if (hitType === "target" && hitEntity && hitEntity.components && hitEntity.components["target-behavior"]) {
+      console.log('🎯 Appel de onArrowHit sur la cible...');
       hitEntity.components["target-behavior"].onArrowHit(this.el, impactPoint);
       
-      // Faire disparaître immédiatement la flèche quand elle touche une cible
-      this.animateRemoval();
+      // La flèche sera supprimée par le composant target-behavior lors de la destruction
+      // Ne pas appeler animateRemoval() ici pour éviter la double suppression
     } else {
+      console.log('🔵 Pas une cible ou composant manquant, suppression de la flèche après 3s');
       // Pour les surfaces environnement, retirer la flèche après 3 secondes
       setTimeout(() => {
         this.animateRemoval();
@@ -288,27 +346,35 @@ tick: function (time, deltaTime) {
     }
   },
 
+  isDescendant: function(obj, parent) {
+    let current = obj;
+    while (current) {
+      if (current === parent) return true;
+      current = current.parent;
+    }
+    return false;
+  },
+
   animateRemoval: function () {
     if (!this.el || !this.el.parentNode) return;
 
-    let elapsed = 0;
-    const duration = 500;
-    const startScale = this.el.getAttribute("scale") || { x: 1, y: 1, z: 1 };
+    const arrowEl = this.el;
+    const scaleAttr = arrowEl.getAttribute("scale") || { x: 1, y: 1, z: 1 };
+    const startScale = { x: scaleAttr.x || 1, y: scaleAttr.y || 1, z: scaleAttr.z || 1 };
 
-    const animate = () => {
-      elapsed += 16;
-      const progress = Math.min(elapsed / duration, 1);
-      const scale = startScale.x * (1 - progress);
-      this.el.setAttribute("scale", `${scale} ${scale} ${scale}`);
+    // Utiliser les animations A-Frame natives (compatibles XR)
+    arrowEl.removeAttribute('animation__removal');
+    arrowEl.setAttribute('animation__removal', {
+      property: 'scale',
+      to: '0 0 0',
+      dur: 300,
+      easing: 'easeInQuad'
+    });
 
-      if (progress < 1) {
-        requestAnimationFrame(animate);
-      } else {
-        this.removeArrow();
-      }
-    };
-
-    animate();
+    // Supprimer après l'animation
+    setTimeout(() => {
+      this.removeArrow();
+    }, 350);
   },
 
   removeArrow: function () {

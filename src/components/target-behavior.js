@@ -34,6 +34,8 @@ AFRAME.registerComponent('target-behavior', {
    * Calcule le score de précision basé sur la distance au centre
    */
   onArrowHit: function (arrowEl, impactPoint) {
+    console.log('🔵 onArrowHit appelé!')
+    
     try {
       if (!impactPoint) {
         console.error('No impact point provided')
@@ -55,6 +57,8 @@ AFRAME.registerComponent('target-behavior', {
 
       this.hitCount++
       this.currentHp--
+      
+      console.log(`🔵 HP après impact: ${this.currentHp} (initial: ${this.data.hp})`)
 
       // Convertir le point d'impact en coordonnées locales de la cible
       const localImpact = this.el.object3D.worldToLocal(impactPoint.clone())
@@ -119,8 +123,18 @@ AFRAME.registerComponent('target-behavior', {
       }
 
       // Détruire la cible si HP = 0
+      console.log(`🔵 Vérification destruction: currentHp=${this.currentHp}, condition=${this.currentHp <= 0}`)
       if (this.currentHp <= 0) {
+        console.log('🔵 Appel de destroy()...')
         this.destroy(finalPoints)
+      } else {
+        // Si la cible n'est pas détruite, supprimer quand même la flèche après un délai
+        console.log('🔵 Cible non détruite, flèche sera supprimée après 2s')
+        setTimeout(() => {
+          if (arrowEl && arrowEl.parentNode) {
+            arrowEl.parentNode.removeChild(arrowEl)
+          }
+        }, 2000)
       }
     } catch (e) {
       console.error('onArrowHit error:', e)
@@ -128,28 +142,30 @@ AFRAME.registerComponent('target-behavior', {
   },
 
   playHitAnimation: function (zone) {
-    // Animation simplifiée
+    // Animation de hit utilisant les animations A-Frame natives (compatibles XR)
     try {
-      const originalScale = this.el.getAttribute('scale')
-      const scale = zone === 'bullseye' ? 1.3 : zone === 'middle' ? 1.2 : 1.1
+      const scaleAttr = this.el.getAttribute('scale') || { x: 1, y: 1, z: 1 }
+      const originalScale = { x: scaleAttr.x || 1, y: scaleAttr.y || 1, z: scaleAttr.z || 1 }
+      const scaleFactor = zone === 'bullseye' ? 1.3 : zone === 'middle' ? 1.2 : 1.1
       
-      this.el.setAttribute('scale', {
-        x: originalScale.x * scale,
-        y: originalScale.y * scale,
-        z: originalScale.z * scale
+      // Supprimer l'ancienne animation si elle existe
+      this.el.removeAttribute('animation__hit')
+      
+      // Animation de pulse avec A-Frame
+      this.el.setAttribute('animation__hit', {
+        property: 'scale',
+        from: `${originalScale.x * scaleFactor} ${originalScale.y * scaleFactor} ${originalScale.z * scaleFactor}`,
+        to: `${originalScale.x} ${originalScale.y} ${originalScale.z}`,
+        dur: 150,
+        easing: 'easeOutQuad'
       })
-      
-      // Revenir à l'échelle originale après 150ms
-      setTimeout(() => {
-        this.el.setAttribute('scale', originalScale)
-      }, 150)
     } catch (e) {
       console.error('Hit animation error:', e)
     }
   },
 
   showHitFeedback: function (localPosition, points, zone) {
-    // Créer un texte flottant avec les points
+    // Créer un texte flottant avec les points - utilise animations A-Frame pour XR
     try {
       const worldPos = new THREE.Vector3();
       this.el.object3D.getWorldPosition(worldPos);
@@ -196,63 +212,43 @@ AFRAME.registerComponent('target-behavior', {
       textEl.setAttribute('color', color);
       textEl.setAttribute('align', 'center');
       textEl.setAttribute('scale', `${textSize} ${textSize} ${textSize}`);
-      textEl.setAttribute('look-at', '[camera]'); // Toujours face à la caméra
-      
-      // Ajouter un fond pour meilleure lisibilité
+      textEl.setAttribute('look-at', '[camera]');
       textEl.setAttribute('font', 'mozillavr');
       
       floatingText.appendChild(textEl);
       this.el.sceneEl.appendChild(floatingText);
       
-      // Animation de montée et disparition
-      let elapsed = 0;
-      const duration = 1500; // 1.5 secondes
-      const startY = worldPos.y + 0.3;
-      const endY = worldPos.y + 1.2;
+      // Utiliser les animations A-Frame natives (compatibles XR)
+      floatingText.setAttribute('animation__position', {
+        property: 'position',
+        to: `${worldPos.x} ${worldPos.y + 1.2} ${worldPos.z}`,
+        dur: 1500,
+        easing: 'easeOutCubic'
+      });
       
-      const animate = () => {
-        elapsed += 16;
-        const progress = Math.min(elapsed / duration, 1);
-        
-        // Easing ease-out
-        const easeOut = 1 - Math.pow(1 - progress, 3);
-        
-        // Monter le texte
-        const newY = startY + (endY - startY) * easeOut;
-        floatingText.setAttribute('position', {
-          x: worldPos.x,
-          y: newY,
-          z: worldPos.z
-        });
-        
-        // Fade out progressif (à partir de 50%)
-        if (progress > 0.5) {
-          const fadeProgress = (progress - 0.5) * 2;
-          const opacity = 1 - fadeProgress;
-          textEl.setAttribute('opacity', opacity);
-        }
-        
-        // Scale up puis down
-        let scaleMultiplier = 1;
-        if (progress < 0.2) {
-          scaleMultiplier = 1 + (progress / 0.2) * 0.3; // Grandir de 30%
-        } else if (progress < 0.4) {
-          scaleMultiplier = 1.3 - ((progress - 0.2) / 0.2) * 0.3; // Revenir à la normale
-        }
-        
-        textEl.setAttribute('scale', `${textSize * scaleMultiplier} ${textSize * scaleMultiplier} ${textSize * scaleMultiplier}`);
-        
-        if (progress < 1) {
-          requestAnimationFrame(animate);
-        } else {
-          // Supprimer l'élément
-          if (floatingText.parentNode) {
-            floatingText.parentNode.removeChild(floatingText);
-          }
-        }
-      };
+      textEl.setAttribute('animation__opacity', {
+        property: 'opacity',
+        from: 1,
+        to: 0,
+        dur: 1500,
+        delay: 500,
+        easing: 'easeInQuad'
+      });
       
-      animate();
+      textEl.setAttribute('animation__scale', {
+        property: 'scale',
+        from: `${textSize} ${textSize} ${textSize}`,
+        to: `${textSize * 1.3} ${textSize * 1.3} ${textSize * 1.3}`,
+        dur: 300,
+        easing: 'easeOutQuad'
+      });
+      
+      // Supprimer après l'animation
+      setTimeout(() => {
+        if (floatingText.parentNode) {
+          floatingText.parentNode.removeChild(floatingText);
+        }
+      }, 1600);
       
       console.log(`✓ Hit feedback: +${points} points in ${zone} zone`);
       
@@ -263,16 +259,27 @@ AFRAME.registerComponent('target-behavior', {
   },
 
   destroy: function (lastPoints) {
-    console.log('🎉 Cible détruite!')
+    console.log('🎉 Cible détruite! Suppression en cours...')
+    
+    // Marquer comme étant en cours de destruction pour éviter les doubles appels
+    if (this.isDestroying) {
+      console.log('⚠️ Cible déjà en cours de destruction, ignoré')
+      return
+    }
+    this.isDestroying = true
+    
+    // Référence à this.el pour utilisation dans les callbacks
+    const targetEl = this.el
+    const sceneEl = this.el.sceneEl
     
     // Récupérer la position pour les effets visuels
     const worldPos = new THREE.Vector3();
-    this.el.object3D.getWorldPosition(worldPos);
+    targetEl.object3D.getWorldPosition(worldPos);
     
     // Créer l'effet de destruction (particules + texte)
     this.createDestroyEffect(worldPos, lastPoints);
     
-    // Supprimer toutes les flèches plantées dans cette cible
+    // Supprimer toutes les flèches plantées dans cette cible IMMÉDIATEMENT
     this.arrowElements.forEach(arrow => {
       if (arrow && arrow.parentNode) {
         arrow.parentNode.removeChild(arrow)
@@ -280,75 +287,117 @@ AFRAME.registerComponent('target-behavior', {
     })
     this.arrowElements = []
     
+    // Émettre événement de destruction IMMÉDIATEMENT
     try {
-      // Animation de destruction simplifiée
-      let elapsed = 0
-      const duration = 400
-      const startScale = this.el.getAttribute('scale')
-      const startRotation = this.el.getAttribute('rotation')
-      
-      const animateDestroy = () => {
-        elapsed += 16
-        const progress = Math.min(elapsed / duration, 1)
-        
-        // Scale to 0
-        this.el.setAttribute('scale', `${startScale.x * (1 - progress)} ${startScale.y * (1 - progress)} ${startScale.z * (1 - progress)}`)
-        
-        // Rotation
-        this.el.setAttribute('rotation', `${startRotation.x} ${startRotation.y + (progress * 360)} ${startRotation.z}`)
-        
-        if (progress < 1) {
-          requestAnimationFrame(animateDestroy)
-        }
-      }
-      
-      animateDestroy()
-    } catch (e) {
-      console.error('Destroy animation error:', e)
-    }
-
-    // Émettre événement de destruction
-    try {
-      this.el.sceneEl.emit('target-destroyed', {
+      sceneEl.emit('target-destroyed', {
         points: this.data.points,
         totalHits: this.hitCount,
         bonusPoints: Math.floor(lastPoints * 0.5),
         surfaceType: this.surfaceType,
-        targetId: this.el.id
+        targetId: targetEl.id
       })
     } catch (e) {
       console.error('Event emission error:', e)
     }
-
-    // Supprimer après l'animation
-    setTimeout(() => {
-      if (this.el.parentNode) {
-        this.el.parentNode.removeChild(this.el)
+    
+    // SOLUTION XR: Utiliser les animations A-Frame natives qui fonctionnent en WebXR
+    // au lieu de requestAnimationFrame qui ne fonctionne pas en mode XR
+    try {
+      // Supprimer les anciennes animations si elles existent
+      targetEl.removeAttribute('animation__scale')
+      targetEl.removeAttribute('animation__rotation')
+      
+      // Animation de scale vers 0 avec A-Frame animation
+      targetEl.setAttribute('animation__scale', {
+        property: 'scale',
+        to: '0 0 0',
+        dur: 200,
+        easing: 'easeInQuad'
+      })
+      
+      // Animation de rotation avec A-Frame animation
+      targetEl.setAttribute('animation__rotation', {
+        property: 'rotation',
+        to: '0 360 0',
+        dur: 200,
+        easing: 'linear'
+      })
+      
+      // Écouter la fin de l'animation pour supprimer l'élément
+      const onAnimationComplete = () => {
+        console.log('🗑️ Animation terminée, suppression de la cible du DOM')
+        targetEl.removeEventListener('animationcomplete__scale', onAnimationComplete)
+        if (targetEl.parentNode) {
+          targetEl.parentNode.removeChild(targetEl)
+        }
       }
-    }, 450)
+      
+      targetEl.addEventListener('animationcomplete__scale', onAnimationComplete)
+      
+      // Sécurité: supprimer après 500ms si l'animation ne se termine pas
+      setTimeout(() => {
+        console.log('🗑️ Timeout de sécurité, suppression de la cible')
+        if (targetEl && targetEl.parentNode) {
+          targetEl.parentNode.removeChild(targetEl)
+        }
+      }, 500)
+      
+    } catch (e) {
+      console.error('Destroy animation error:', e)
+      // En cas d'erreur, supprimer immédiatement
+      console.log('🗑️ Suppression forcée de la cible (erreur)')
+      if (targetEl && targetEl.parentNode) {
+        targetEl.parentNode.removeChild(targetEl)
+      }
+    }
   },
   
   createDestroyEffect: function(worldPos, points) {
     try {
       // Créer un container pour l'effet
       const effectContainer = document.createElement('a-entity');
-      effectContainer.setAttribute('position', worldPos);
+      effectContainer.setAttribute('position', `${worldPos.x} ${worldPos.y} ${worldPos.z}`);
       this.el.sceneEl.appendChild(effectContainer);
       
-      // Texte "DÉTRUIT!" avec animation
+      // Texte "DÉTRUIT!" avec animation A-Frame native
       const destroyText = document.createElement('a-text');
-      destroyText.setAttribute('value', `💥 DÉTRUIT! +${Math.floor(points * 0.5)} BONUS`);
+      destroyText.setAttribute('value', `💥 DETRUIT! +${Math.floor(points * 0.5)} BONUS`);
       destroyText.setAttribute('color', '#FF4444');
       destroyText.setAttribute('align', 'center');
       destroyText.setAttribute('scale', '0.4 0.4 0.4');
       destroyText.setAttribute('position', '0 0.5 0');
       destroyText.setAttribute('look-at', '[camera]');
       destroyText.setAttribute('font', 'mozillavr');
+      
+      // Animations A-Frame natives pour le texte
+      destroyText.setAttribute('animation__position', {
+        property: 'position',
+        to: '0 1.3 0',
+        dur: 1200,
+        easing: 'easeOutCubic'
+      });
+      
+      destroyText.setAttribute('animation__scale', {
+        property: 'scale',
+        from: '0.4 0.4 0.4',
+        to: '0.6 0.6 0.6',
+        dur: 150,
+        easing: 'easeOutQuad'
+      });
+      
+      destroyText.setAttribute('animation__opacity', {
+        property: 'opacity',
+        from: 1,
+        to: 0,
+        dur: 1200,
+        delay: 400,
+        easing: 'easeInQuad'
+      });
+      
       effectContainer.appendChild(destroyText);
       
-      // Créer des particules qui explosent
+      // Créer des particules qui explosent avec animations A-Frame
       const particleCount = 8;
-      const particles = [];
       
       for (let i = 0; i < particleCount; i++) {
         const particle = document.createElement('a-sphere');
@@ -358,79 +407,51 @@ AFRAME.registerComponent('target-behavior', {
         const colors = ['#FFD700', '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FF8C00'];
         const color = colors[i % colors.length];
         
-        particle.setAttribute('radius', 0.03 + Math.random() * 0.02);
+        const radius = 0.03 + Math.random() * 0.02;
+        particle.setAttribute('radius', radius);
         particle.setAttribute('color', color);
         particle.setAttribute('position', '0 0 0');
         particle.setAttribute('material', 'shader: flat');
         
-        effectContainer.appendChild(particle);
+        // Position finale de la particule
+        const distance = 0.8 + Math.random() * 0.4;
+        const endX = Math.cos(angle) * distance;
+        const endY = 0.3 + Math.random() * 0.5;
+        const endZ = Math.sin(angle) * distance;
         
-        particles.push({
-          el: particle,
-          vx: Math.cos(angle) * (0.02 + Math.random() * 0.01),
-          vy: 0.02 + Math.random() * 0.02,
-          vz: Math.sin(angle) * (0.02 + Math.random() * 0.01),
-          gravity: 0.001
+        // Animation de position avec A-Frame
+        particle.setAttribute('animation__position', {
+          property: 'position',
+          to: `${endX} ${endY} ${endZ}`,
+          dur: 800,
+          easing: 'easeOutQuad'
         });
+        
+        // Animation de scale (shrink)
+        particle.setAttribute('animation__scale', {
+          property: 'scale',
+          to: '0 0 0',
+          dur: 1000,
+          easing: 'easeInQuad'
+        });
+        
+        // Animation d'opacité
+        particle.setAttribute('animation__opacity', {
+          property: 'material.opacity',
+          to: 0,
+          dur: 1000,
+          easing: 'easeInQuad'
+        });
+        
+        effectContainer.appendChild(particle);
       }
       
-      // Animation des particules et du texte
-      let elapsed = 0;
-      const duration = 1200;
-      
-      const animateEffect = () => {
-        elapsed += 16;
-        const progress = Math.min(elapsed / duration, 1);
-        
-        // Animer le texte (monte et fade)
-        const textY = 0.5 + progress * 0.8;
-        destroyText.setAttribute('position', `0 ${textY} 0`);
-        
-        if (progress > 0.4) {
-          const fadeProgress = (progress - 0.4) / 0.6;
-          destroyText.setAttribute('opacity', 1 - fadeProgress);
+      // Supprimer le container après les animations
+      setTimeout(() => {
+        if (effectContainer.parentNode) {
+          effectContainer.parentNode.removeChild(effectContainer);
         }
-        
-        // Scale du texte (pop effect)
-        let textScale = 0.4;
-        if (progress < 0.15) {
-          textScale = 0.4 + (progress / 0.15) * 0.2;
-        } else if (progress < 0.3) {
-          textScale = 0.6 - ((progress - 0.15) / 0.15) * 0.2;
-        }
-        destroyText.setAttribute('scale', `${textScale} ${textScale} ${textScale}`);
-        
-        // Animer les particules
-        particles.forEach((p) => {
-          if (!p.el.parentNode) return;
-          
-          const pos = p.el.getAttribute('position');
-          p.vy -= p.gravity; // Gravité
-          
-          p.el.setAttribute('position', {
-            x: pos.x + p.vx,
-            y: pos.y + p.vy,
-            z: pos.z + p.vz
-          });
-          
-          // Fade et shrink
-          const particleOpacity = 1 - progress;
-          const particleScale = 1 - progress * 0.5;
-          p.el.setAttribute('material', 'opacity', particleOpacity);
-          p.el.setAttribute('scale', `${particleScale} ${particleScale} ${particleScale}`);
-        });
-        
-        if (progress < 1) {
-          requestAnimationFrame(animateEffect);
-        } else {
-          // Supprimer le container
-          if (effectContainer.parentNode) {
-            effectContainer.parentNode.removeChild(effectContainer);
-          }
-        }
-      };
-      
-      animateEffect();
+      }, 1300);
       
     } catch (e) {
       console.error('Destroy effect error:', e);
