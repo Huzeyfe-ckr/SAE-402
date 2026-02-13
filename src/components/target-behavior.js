@@ -115,9 +115,9 @@ AFRAME.registerComponent('target-behavior', {
     
     wallData.forEach(wall => {
       if (wall.isFloor) {
-        minY = wall.position.y + 0.3 // Un peu au-dessus du sol
+        minY = wall.position.y + 0.5 // Un peu plus haut au-dessus du sol
       } else if (wall.isCeiling) {
-        maxY = wall.position.y - 0.3 // Un peu en dessous du plafond
+        maxY = wall.position.y - 0.5 // Un peu plus bas en dessous du plafond
       } else {
         // C'est un mur
         const pos = wall.position
@@ -130,8 +130,8 @@ AFRAME.registerComponent('target-behavior', {
       }
     })
     
-    // Réduire un peu les limites pour éviter les collisions avec les murs
-    const margin = 0.5
+    // GRANDE marge pour éviter les collisions avec les murs (1.2m de distance)
+    const margin = 1.2
     this.roomBounds = {
       minX: minX === Infinity ? -4 : minX + margin,
       maxX: maxX === -Infinity ? 4 : maxX - margin,
@@ -141,7 +141,10 @@ AFRAME.registerComponent('target-behavior', {
       maxZ: maxZ === -Infinity ? 4 : maxZ - margin
     }
     
-    console.log(`🏠 Limites de vol: X[${this.roomBounds.minX.toFixed(1)}, ${this.roomBounds.maxX.toFixed(1)}] Y[${this.roomBounds.minY.toFixed(1)}, ${this.roomBounds.maxY.toFixed(1)}] Z[${this.roomBounds.minZ.toFixed(1)}, ${this.roomBounds.maxZ.toFixed(1)}]`)
+    // Stocker aussi les murs pour la détection de proximité
+    this.wallsData = wallData
+    
+    console.log(`🏠 Limites de vol: X[${this.roomBounds.minX.toFixed(1)}, ${this.roomBounds.maxX.toFixed(1)}] Y[${this.roomBounds.minY.toFixed(1)}, ${this.roomBounds.maxY.toFixed(1)}] Z[${this.roomBounds.minZ.toFixed(1)}, ${this.roomBounds.maxZ.toFixed(1)}] (marge: ${margin}m)`)
   },
 
   /**
@@ -235,15 +238,48 @@ AFRAME.registerComponent('target-behavior', {
     const baseY = this.startPosition.y
     let newY = baseY + Math.sin(this.flightTime * 1.5) * heightVar
     
-    // Appliquer les limites de la pièce
+    // Appliquer les limites de la pièce avec marge agressive
     if (this.roomBounds) {
+      // Appliquer les limites dures
       newX = Math.max(this.roomBounds.minX, Math.min(this.roomBounds.maxX, newX))
       newY = Math.max(this.roomBounds.minY, Math.min(this.roomBounds.maxY, newY))
       newZ = Math.max(this.roomBounds.minZ, Math.min(this.roomBounds.maxZ, newZ))
+      
+      // Appliquer une zone de "confort" supplémentaire pour repousser l'oiseau vers le centre
+      const comfortMargin = 0.8
+      const comfortMinX = this.roomBounds.minX + comfortMargin
+      const comfortMaxX = this.roomBounds.maxX - comfortMargin
+      const comfortMinZ = this.roomBounds.minZ + comfortMargin
+      const comfortMaxZ = this.roomBounds.maxZ - comfortMargin
+      
+      // Si l'oiseau s'approche trop, le repousser vers le centre
+      if (newX < comfortMinX) {
+        newX = comfortMinX + Math.sin(this.flightTime * 2) * 0.3
+      } else if (newX > comfortMaxX) {
+        newX = comfortMaxX - Math.sin(this.flightTime * 2) * 0.3
+      }
+      
+      if (newZ < comfortMinZ) {
+        newZ = comfortMinZ + Math.cos(this.flightTime * 2) * 0.3
+      } else if (newZ > comfortMaxZ) {
+        newZ = comfortMaxZ - Math.cos(this.flightTime * 2) * 0.3
+      }
+      
+      if (newY < this.roomBounds.minY + 0.3) {
+        newY = this.roomBounds.minY + 0.3
+      } else if (newY > this.roomBounds.maxY - 0.3) {
+        newY = this.roomBounds.maxY - 0.3
+      }
     }
     
-    // Appliquer la nouvelle position - UTILISER setAttribute pour A-Frame
-    this.el.setAttribute('position', { x: newX, y: newY, z: newZ })
+    // Appliquer la nouvelle position - Translater le modèle GLB enfant
+    const glbModel = this.el.querySelector('[gltf-model]')
+    if (glbModel && glbModel.object3D) {
+      glbModel.object3D.position.set(newX, newY, newZ)
+    } else {
+      // Fallback: translater le conteneur lui-même
+      this.el.object3D.position.set(newX, newY, newZ)
+    }
     
     // Debug: log périodique
     if (!this.lastPosLog2 || this.flightTime - this.lastPosLog2 > 2) {
@@ -263,11 +299,17 @@ AFRAME.registerComponent('target-behavior', {
       const pitchAngle = Math.atan2(velocity.y, Math.sqrt(velocity.x * velocity.x + velocity.z * velocity.z)) * (180 / Math.PI)
       const bankAngle = Math.sin(this.flightTime * speed * 0.5) * 0.2 * (180 / Math.PI)
       
-      this.el.setAttribute('rotation', {
-        x: -pitchAngle * 0.3,
-        y: targetAngleY,
-        z: bankAngle * this.flightDirection
-      })
+      const rotX = -pitchAngle * 0.3
+      const rotY = targetAngleY
+      const rotZ = bankAngle * this.flightDirection
+      
+      // Mettre à jour directement l'objet 3D
+      this.el.object3D.rotation.order = 'YXZ'
+      this.el.object3D.rotation.set(
+        THREE.MathUtils.degToRad(rotX),
+        THREE.MathUtils.degToRad(rotY),
+        THREE.MathUtils.degToRad(rotZ)
+      )
     }
   },
 
