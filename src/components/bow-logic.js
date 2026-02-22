@@ -60,6 +60,7 @@ AFRAME.registerComponent("bow-logic", {
     });
 
     this.laserMesh = new THREE.Mesh(geometry, material);
+    this.laserMesh.visible = false; // CACHÉ : Laser invisible pour ne pas clutteriser l'écran
 
     // IMPORTANT : On attache le laser au GUIDE, pas directement à la main
     // Comme ça, si on tourne le guide pour corriger le tir, le laser suit visuellement.

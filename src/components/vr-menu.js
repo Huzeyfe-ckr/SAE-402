@@ -251,6 +251,13 @@ AFRAME.registerComponent("vr-menu", {
 
   onPlayClick: function () {
     console.log("🎮 Bouton JOUER cliqué !");
+    
+    // Désactiver les lasers des manettes au lancement du jeu
+    const bowDrawSystem = document.querySelector("#rig").components["bow-draw-system"];
+    if (bowDrawSystem && bowDrawSystem.disableLasers) {
+      bowDrawSystem.disableLasers();
+    }
+    
     this.el.sceneEl.emit("start-game");
     this.hideMenu();
   },

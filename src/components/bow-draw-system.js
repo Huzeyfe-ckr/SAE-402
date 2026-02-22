@@ -3,8 +3,9 @@ AFRAME.registerComponent("bow-draw-system", {
     maxArrowSpeed: { type: "number", default: 80 }, // Vitesse maximale de la flèche
     minArrowSpeed: { type: "number", default: 8 },
     maxDrawDistance: { type: "number", default: 0.45 }, // Distance maximale de tirage en mètres des mains
-    minDrawDistance: { type: "number", default: 0.12 }, // Distance minimale pour tirer 
+    minDrawDistance: { type: "number", default: 0.25 }, // Distance minimale pour tirer (ANTI-EXPLOIT: augmenté de 0.12 à 0.25m)
     snapDistance: { type: "number", default: 0.2 }, // Distance pour "accrocher" la corde
+    shotCooldown: { type: "number", default: 500 }, // Cooldown entre les tirs en ms (ANTI-EXPLOIT)
   },
 
   init: function () {
@@ -14,6 +15,8 @@ AFRAME.registerComponent("bow-draw-system", {
     this.isDrawing = false;
     this.drawDistance = 0;
     this.triggerPressed = false;
+    this.lastShotTime = 0; // ANTI-EXPLOIT: tracker le dernier tir
+    this.canShoot = true; // ANTI-EXPLOIT: flag de cooldown
 
     this.tempVectorLeft = new THREE.Vector3();
     this.tempVectorRight = new THREE.Vector3();
@@ -74,6 +77,18 @@ AFRAME.registerComponent("bow-draw-system", {
     this.handIndicator = new THREE.Mesh(sphereGeo, sphereMat);
     this.handIndicator.visible = false;
     this.el.sceneEl.object3D.add(this.handIndicator);
+
+    // ANTI-EXPLOIT: Indicateur de puissance (anneau qui change de taille)
+    const ringGeo = new THREE.RingGeometry(0.05, 0.06, 32);
+    const ringMat = new THREE.MeshBasicMaterial({
+      color: 0xff0000,
+      side: THREE.DoubleSide,
+      transparent: true,
+      opacity: 0.7,
+    });
+    this.powerRing = new THREE.Mesh(ringGeo, ringMat);
+    this.powerRing.visible = false;
+    this.el.sceneEl.object3D.add(this.powerRing);
   },
 
   handleTriggerDown: function () {
@@ -89,8 +104,8 @@ AFRAME.registerComponent("bow-draw-system", {
 
     if (distance < this.data.snapDistance) {
       this.isDrawing = true;
-      this.drawLine.visible = true;
-      this.handIndicator.visible = true;
+      this.drawLine.visible = true; // Afficher la ligne de puissance
+      this.handIndicator.visible = true; // Afficher l'indicateur de main
       console.log("🎯 Corde accrochée !");
 
       // Son de grincement de la corde
@@ -146,14 +161,81 @@ AFRAME.registerComponent("bow-draw-system", {
       1,
     );
     const color = new THREE.Color();
-    color.setHSL(0.3 - drawRatio * 0.3, 1.0, 0.5); // De vert à rouge
+    
+    // ANTI-EXPLOIT: Couleur rouge si distance insuffisante
+    const isValidDraw = this.drawDistance >= this.data.minDrawDistance;
+    if (isValidDraw) {
+      color.setHSL(0.3 - drawRatio * 0.3, 1.0, 0.5); // De vert à rouge
+    } else {
+      color.setRGB(0.5, 0.0, 0.0); // Rouge sombre si invalide
+    }
+    
     this.drawLine.material.color = color;
     this.handIndicator.material.color = color;
+
+    // ANTI-EXPLOIT: Afficher l'anneau de puissance à la main gauche
+    if (this.powerRing) {
+      this.powerRing.visible = true;
+      this.powerRing.position.copy(this.tempVectorLeft);
+      this.powerRing.lookAt(this.el.sceneEl.camera.getWorldPosition(new THREE.Vector3()));
+      
+      // Taille de l'anneau en fonction de la puissance
+      const ringScale = 0.5 + drawRatio * 1.5;
+      this.powerRing.scale.set(ringScale, ringScale, 1);
+      this.powerRing.material.color.copy(color);
+      this.powerRing.material.opacity = isValidDraw ? 0.8 : 0.4;
+    }
   },
 
   shootArrow: function () {
+    // ANTI-EXPLOIT: Vérifier le cooldown
+    const now = Date.now();
+    if (now - this.lastShotTime < this.data.shotCooldown) {
+      const remaining = ((this.data.shotCooldown - (now - this.lastShotTime)) / 1000).toFixed(1);
+      console.log(`⏳ Cooldown actif ! Attendre ${remaining}s`);
+      
+      // Son d'erreur
+      const errorSound = document.getElementById("error-sound");
+      if (errorSound) {
+        errorSound.currentTime = 0;
+        errorSound.volume = 0.3;
+        errorSound.play().catch((e) => {});
+      }
+      return;
+    }
+
+    // ANTI-EXPLOIT: Vérifier la distance minimale (25cm)
     if (this.drawDistance < this.data.minDrawDistance) {
-      console.log("⚠️ Pas assez tiré !");
+      console.log(`❌ TIR INVALIDE ! Distance: ${(this.drawDistance * 100).toFixed(0)}cm < Minimum: ${(this.data.minDrawDistance * 100).toFixed(0)}cm`);
+      
+      // Feedback visuel: flash rouge
+      if (this.handIndicator) {
+        this.handIndicator.material.color.setRGB(1.0, 0.0, 0.0);
+        this.handIndicator.material.opacity = 1.0;
+      }
+      
+      // Son d'erreur
+      const errorSound = document.getElementById("error-sound");
+      if (errorSound) {
+        errorSound.currentTime = 0;
+        errorSound.volume = 0.5;
+        errorSound.play().catch((e) => {});
+      }
+      
+      // Vibration haptique sur les contrôleurs (WebXR native)
+      try {
+        const session = this.el.sceneEl.renderer.xr.getSession();
+        if (session && session.inputSources) {
+          session.inputSources.forEach(source => {
+            if (source.gamepad && source.gamepad.hapticActuators && source.gamepad.hapticActuators[0]) {
+              source.gamepad.hapticActuators[0].pulse(0.5, 100); // intensité 0.5, durée 100ms
+            }
+          });
+        }
+      } catch (e) {
+        // Pas de support haptique
+      }
+      
       return;
     }
 
@@ -239,6 +321,15 @@ AFRAME.registerComponent("bow-draw-system", {
 
     // Émettre l'événement pour le compteur de flèches
     this.el.sceneEl.emit("arrow-shot");
+    
+    // ANTI-EXPLOIT: Enregistrer le temps du dernier tir
+    this.lastShotTime = Date.now();
+    this.canShoot = false;
+    
+    // ANTI-EXPLOIT: Réactiver après le cooldown
+    setTimeout(() => {
+      this.canShoot = true;
+    }, this.data.shotCooldown);
   },
 
   createFlyingArrow: function (position, rotation, speed) {
@@ -253,6 +344,30 @@ AFRAME.registerComponent("bow-draw-system", {
     scene.appendChild(arrow);
   },
 
+  /**
+   * Désactiver le laser blanc des manettes au lancement du jeu
+   * Appelé quand "Lancer la game" est pressé
+   */
+  disableLasers: function () {
+    console.log("🔫 Désactivation des lasers des manettes");
+    
+    if (this.leftHand) {
+      this.leftHand.removeAttribute('laser-controls');
+      const raycaster = this.leftHand.components.raycaster;
+      if (raycaster) {
+        this.leftHand.setAttribute('raycaster', 'enabled', false);
+      }
+    }
+    
+    if (this.rightHand) {
+      this.rightHand.removeAttribute('laser-controls');
+      const raycaster = this.rightHand.components.raycaster;
+      if (raycaster) {
+        this.rightHand.setAttribute('raycaster', 'enabled', false);
+      }
+    }
+  },
+
   remove: function () {
     if (this.rightHand) {
       this.rightHand.removeEventListener("triggerdown", this.onTriggerDown);
@@ -262,5 +377,6 @@ AFRAME.registerComponent("bow-draw-system", {
     }
     if (this.drawLine) this.el.sceneEl.object3D.remove(this.drawLine);
     if (this.handIndicator) this.el.sceneEl.object3D.remove(this.handIndicator);
+    if (this.powerRing) this.el.sceneEl.object3D.remove(this.powerRing); // ANTI-EXPLOIT: nettoyer l'anneau
   },
 });
