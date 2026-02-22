@@ -170,10 +170,19 @@ tick: function (time, deltaTime) {
     dragAcc = dragForce.divideScalar(this.data.mass);
   }
 
-  // 3. Somme des accélérations = Gravité + Drag/mass
-  this.acceleration.copy(gravityAcc).add(dragAcc);
+  // 3. NOUVEAU - Appliquer le vent
+  let windAcc = new THREE.Vector3(0, 0, 0);
+  const windSystem = this.el.sceneEl.systems.wind;
+  if (windSystem) {
+    const windForce = windSystem.getWindForce();
+    // Convertir la force du vent en accélération (F = m*a, donc a = F/m)
+    windAcc = windForce.divideScalar(this.data.mass);
+  }
 
-  // 4. Mise à jour de la vélocité: v = v + a * dt
+  // 4. Somme des accélérations = Gravité + Drag/mass + Vent
+  this.acceleration.copy(gravityAcc).add(dragAcc).add(windAcc);
+
+  // 5. Mise à jour de la vélocité: v = v + a * dt
   this.velocity.add(this.acceleration.clone().multiplyScalar(dt));
 
   // 5. Calculer le déplacement: s = v * dt

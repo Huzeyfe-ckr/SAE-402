@@ -111,15 +111,16 @@
       vr-mode-ui="enabled: true"
       embedded
       game-manager
-    >
-      <!-- Assets -->
+      wind="enabled: true; baseForce: 0.02; forceVariation: 0.03; visualEnabled: true; changeInterval: 5000; windDuration: 15000; calmDuration: 10000"
+      
+      ><!-- Assets -->
       <a-assets>
         <a-asset-item id="bow-model" src="/arc_sanslacorde.glb"></a-asset-item>
         <a-asset-item id="target-model" src="/target.glb"></a-asset-item>
         <a-asset-item id="arrow-model" src="/arrow.glb"></a-asset-item>
         <audio
           id="background-sound"
-          src="/son/song-background.mp3"
+          src="/son/Benny.mp3"
           crossorigin="anonymous"
           loop
         ></audio>
@@ -148,6 +149,13 @@
           id="error-sound"
           src="/son/error.mp3"
           crossorigin="anonymous"
+        ></audio>
+        <!-- Son du vent (WIND PHYSICS) -->
+        <audio
+          id="wind-sound"
+          src="/son/wind.mp3"
+          crossorigin="anonymous"
+          loop
         ></audio>
       </a-assets>
 

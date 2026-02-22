@@ -22,6 +22,7 @@ import "./components/wall-debug.js";
 
 // Import des systèmes
 import "./systems/game-manager.js";
+import "./systems/wind-system-v2.js";
 
 document.addEventListener("DOMContentLoaded", () => {
   const scene = document.querySelector("a-scene");
