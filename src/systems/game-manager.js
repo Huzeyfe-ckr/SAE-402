@@ -7,7 +7,7 @@
 AFRAME.registerSystem("game-manager", {
   schema: {
     spawnInterval: { type: "number", default: 50 }, // 0.05 secondes - très rapide!
-    maxTargets: { type: "number", default: 15 }, // Beaucoup plus de cibles simultanées
+    maxTargets: { type: "number", default: 30 }, // Augmenté: plus de cibles simultanées
     difficulty: { type: "string", default: "normal" }, // easy, normal, hard
     requireRealSurfaces: { type: "boolean", default: true },
   },

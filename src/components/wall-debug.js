@@ -282,9 +282,16 @@ AFRAME.registerComponent("wall-debug", {
     const wall = document.createElement("a-plane");
     wall.id = `webxr-wall-${index}`;
     
+    // Utiliser la hauteur configurée comme minimum pour agrandir les murs WebXR
+    const wallHeight = Math.max(height, this.data.wallHeight);
+    
+    // Calculer la position Y pour que le mur soit centré verticalement à partir du sol (floorY)
+    // Le mur doit s'étendre de floorY jusqu'à floorY + wallHeight
+    const wallCenterY = this.data.floorY + (wallHeight / 2);
+    
     wall.setAttribute("position", {
       x: position.x,
-      y: position.y,
+      y: wallCenterY,
       z: position.z
     });
     
@@ -308,10 +315,9 @@ AFRAME.registerComponent("wall-debug", {
     // Stocker la normale horizontale pour la collision
     const correctedNormal = horizontalNormal.clone();
     
-    console.log(`🔵 MUR ${index + 1}: normale=(${normal.x.toFixed(2)}, ${normal.y.toFixed(2)}, ${normal.z.toFixed(2)}), angleY=${angleY.toFixed(1)}°`);
+    console.log(`🔵 MUR ${index + 1}: normale=(${normal.x.toFixed(2)}, ${normal.y.toFixed(2)}, ${normal.z.toFixed(2)}), angleY=${angleY.toFixed(1)}°, hauteur=${wallHeight.toFixed(2)}m`);
     
     const wallWidth = Math.max(width, 1);
-    const wallHeight = Math.max(height, 2);
     
     wall.setAttribute("width", wallWidth);
     wall.setAttribute("height", wallHeight);
@@ -353,7 +359,7 @@ AFRAME.registerComponent("wall-debug", {
     this.wallData.push({
       entity: wall,
       name: `MUR ${index + 1}`,
-      position: position.clone(),
+      position: new THREE.Vector3(position.x, wallCenterY, position.z),
       normal: horizontalNormal, // Utiliser la normale horizontale pour la collision
       width: wallWidth,
       height: wallHeight,
@@ -361,7 +367,7 @@ AFRAME.registerComponent("wall-debug", {
       isWebXR: true
     });
     
-    console.log(`🔵 MUR ${index + 1} (WebXR) créé - normale horizontale: (${horizontalNormal.x.toFixed(2)}, ${horizontalNormal.z.toFixed(2)})`);
+    console.log(`🔵 MUR ${index + 1} (WebXR) créé - normale horizontale: (${horizontalNormal.x.toFixed(2)}, ${horizontalNormal.z.toFixed(2)}), Y=${wallCenterY.toFixed(2)}m`);
   },
 
   createFloorFromPlane: function (planeData) {

@@ -84,7 +84,7 @@ AFRAME.registerComponent('target-behavior', {
       // Limites par défaut si pas de wall-debug
       this.roomBounds = {
         minX: -4, maxX: 4,
-        minY: 0.5, maxY: 2.5,
+        minY: 2.8, maxY: 8.5, // CORRIGÉ: altitude plus haute (1.8m - 3m)
         minZ: -4, maxZ: 4
       }
     }
@@ -103,7 +103,7 @@ AFRAME.registerComponent('target-behavior', {
       // Limites par défaut
       this.roomBounds = {
         minX: -4, maxX: 4,
-        minY: 0.5, maxY: 2.5,
+        minY: 2.8, maxY: 8.5,
         minZ: -4, maxZ: 4
       }
       return
@@ -111,13 +111,13 @@ AFRAME.registerComponent('target-behavior', {
     
     let minX = Infinity, maxX = -Infinity
     let minZ = Infinity, maxZ = -Infinity
-    let minY = 0.5, maxY = 2.5
+    let minY = 1.8, maxY = 8.5 // CORRIGÉ: altitude plus haute pour les oiseaux
     
     wallData.forEach(wall => {
       if (wall.isFloor) {
-        minY = wall.position.y + 0.5 // Un peu plus haut au-dessus du sol
+        minY = wall.position.y + 1.5 // CORRIGÉ: 1.5m au-dessus du sol (plus haut)
       } else if (wall.isCeiling) {
-        maxY = wall.position.y - 0.5 // Un peu plus bas en dessous du plafond
+        maxY = wall.position.y - 0.3 // Un peu plus bas en dessous du plafond
       } else {
         // C'est un mur
         const pos = wall.position

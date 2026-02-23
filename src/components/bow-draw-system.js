@@ -130,6 +130,13 @@ AFRAME.registerComponent("bow-draw-system", {
       this.isDrawing = false;
       this.drawLine.visible = false;
       this.handIndicator.visible = false;
+      
+      // CORRECTION: Reset immédiat de l'indicateur de puissance après le tir
+      if (this.powerRing) {
+        this.powerRing.visible = false;
+        this.powerRing.scale.set(0.5, 0.5, 1); // Taille minimale
+      }
+      this.drawDistance = 0; // Reset la distance de tirage
     }
   },
 
