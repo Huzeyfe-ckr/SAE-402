@@ -111,7 +111,7 @@
       vr-mode-ui="enabled: true"
       embedded
       game-manager
-      wind="enabled: true; baseForce: 0.002; forceVariation: 0.003; visualEnabled: true; changeInterval: 4000; windDuration: 8000; calmDuration: 20000"
+      wind="enabled: true; baseForce: 0.0005; forceVariation: 0.0008; visualEnabled: true; changeInterval: 4000; windDuration: 8000; calmDuration: 20000"
       
       ><!-- Assets -->
       <a-assets>
@@ -156,6 +156,27 @@
           src="/son/wind.mp3"
           crossorigin="anonymous"
           loop
+        ></audio>
+        <!-- Sons de combo -->
+        <audio
+          id="combo-double-sound"
+          src="/son/combo-double.wav"
+          crossorigin="anonymous"
+        ></audio>
+        <audio
+          id="combo-triple-sound"
+          src="/son/combo-triple.wav"
+          crossorigin="anonymous"
+        ></audio>
+        <audio
+          id="combo-quad-sound"
+          src="/son/combo-quad.wav"
+          crossorigin="anonymous"
+        ></audio>
+        <audio
+          id="combo-penta-sound"
+          src="/son/combo-penta.wav"
+          crossorigin="anonymous"
         ></audio>
       </a-assets>
 

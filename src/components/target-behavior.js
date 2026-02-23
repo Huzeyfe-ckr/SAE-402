@@ -457,9 +457,9 @@ AFRAME.registerComponent('target-behavior', {
       const worldPos = new THREE.Vector3();
       this.el.object3D.getWorldPosition(worldPos);
       
-      // Créer l'entité du texte flottant
-      const floatingText = document.createElement('a-entity');
-      floatingText.setAttribute('position', {
+      // Créer l'entité du container
+      const feedbackContainer = document.createElement('a-entity');
+      feedbackContainer.setAttribute('position', {
         x: worldPos.x,
         y: worldPos.y + 0.3,
         z: worldPos.z
@@ -467,29 +467,34 @@ AFRAME.registerComponent('target-behavior', {
       
       // Couleur et taille selon la zone touchée
       let color = '#FFFFFF';
-      let textSize = 0.3;
+      let textSize = 0.4;
       let prefix = '+';
+      let particleCount = 6;
       
       switch (zone) {
         case 'bullseye':
           color = '#FFD700'; // Or
-          textSize = 0.5;
+          textSize = 0.6;
           prefix = '🎯 +';
+          particleCount = 15;
           break;
         case 'middle':
           color = '#00FF00'; // Vert
-          textSize = 0.4;
+          textSize = 0.5;
           prefix = '✨ +';
+          particleCount = 10;
           break;
         case 'outer':
           color = '#87CEEB'; // Bleu clair
-          textSize = 0.35;
-          prefix = '+';
+          textSize = 0.45;
+          prefix = '✓ +';
+          particleCount = 8;
           break;
         case 'edge':
           color = '#FFA500'; // Orange
-          textSize = 0.3;
+          textSize = 0.4;
           prefix = '+';
+          particleCount = 6;
           break;
       }
       
@@ -498,44 +503,146 @@ AFRAME.registerComponent('target-behavior', {
       textEl.setAttribute('value', `${prefix}${points}`);
       textEl.setAttribute('color', color);
       textEl.setAttribute('align', 'center');
-      textEl.setAttribute('scale', `${textSize} ${textSize} ${textSize}`);
+      textEl.setAttribute('scale', '0 0 0');
       textEl.setAttribute('look-at', '[camera]');
       textEl.setAttribute('font', 'mozillavr');
+      textEl.setAttribute('width', 1.5);
       
-      floatingText.appendChild(textEl);
-      this.el.sceneEl.appendChild(floatingText);
+      // Animation d'apparition avec bounce
+      textEl.setAttribute('animation__appear', {
+        property: 'scale',
+        to: `${textSize} ${textSize} ${textSize}`,
+        dur: 300,
+        easing: 'easeOutBack'
+      });
       
-      // Utiliser les animations A-Frame natives (compatibles XR)
-      floatingText.setAttribute('animation__position', {
+      // Animation de montée
+      textEl.setAttribute('animation__rise', {
         property: 'position',
-        to: `${worldPos.x} ${worldPos.y + 1.2} ${worldPos.z}`,
+        from: '0 0 0',
+        to: '0 0.8 0',
         dur: 1500,
         easing: 'easeOutCubic'
       });
       
-      textEl.setAttribute('animation__opacity', {
+      // Animation de disparition
+      textEl.setAttribute('animation__fade', {
         property: 'opacity',
         from: 1,
         to: 0,
-        dur: 1500,
-        delay: 500,
+        dur: 800,
+        delay: 700,
         easing: 'easeInQuad'
       });
       
-      textEl.setAttribute('animation__scale', {
-        property: 'scale',
-        from: `${textSize} ${textSize} ${textSize}`,
-        to: `${textSize * 1.3} ${textSize * 1.3} ${textSize * 1.3}`,
-        dur: 300,
-        easing: 'easeOutQuad'
-      });
+      // Pulse pour bullseye
+      if (zone === 'bullseye') {
+        textEl.setAttribute('animation__pulse', {
+          property: 'scale',
+          from: `${textSize} ${textSize} ${textSize}`,
+          to: `${textSize * 1.2} ${textSize * 1.2} ${textSize * 1.2}`,
+          dur: 150,
+          dir: 'alternate',
+          loop: 3,
+          delay: 100,
+          easing: 'easeInOutQuad'
+        });
+      }
+      
+      feedbackContainer.appendChild(textEl);
+      
+      // Créer des particules d'impact
+      for (let i = 0; i < particleCount; i++) {
+        const particle = document.createElement('a-sphere');
+        const angle = (i / particleCount) * Math.PI * 2;
+        
+        // Couleurs variées selon la zone
+        let particleColor = color;
+        if (zone === 'bullseye') {
+          const colors = ['#FFD700', '#FFA500', '#FFFF00'];
+          particleColor = colors[i % colors.length];
+        }
+        
+        const radius = 0.015 + Math.random() * 0.015;
+        particle.setAttribute('radius', radius);
+        particle.setAttribute('color', particleColor);
+        particle.setAttribute('material', 'shader: flat; opacity: 1');
+        particle.setAttribute('position', '0 0 0');
+        
+        // Distance d'explosion
+        const distance = 0.3 + Math.random() * 0.3;
+        const endX = Math.cos(angle) * distance;
+        const endY = 0.1 + Math.random() * 0.2;
+        const endZ = Math.sin(angle) * distance;
+        
+        // Animation d'explosion
+        particle.setAttribute('animation__explode', {
+          property: 'position',
+          to: `${endX} ${endY} ${endZ}`,
+          dur: 600 + Math.random() * 200,
+          easing: 'easeOutQuad'
+        });
+        
+        // Animation de shrink
+        particle.setAttribute('animation__shrink', {
+          property: 'scale',
+          to: '0 0 0',
+          dur: 800,
+          delay: 400,
+          easing: 'easeInQuad'
+        });
+        
+        // Animation d'opacité
+        particle.setAttribute('animation__fade', {
+          property: 'material.opacity',
+          to: 0,
+          dur: 800,
+          delay: 400,
+          easing: 'easeInQuad'
+        });
+        
+        feedbackContainer.appendChild(particle);
+      }
+      
+      // Anneau d'impact pour bullseye et middle
+      if (zone === 'bullseye' || zone === 'middle') {
+        const ring = document.createElement('a-torus');
+        ring.setAttribute('radius', 0.05);
+        ring.setAttribute('radius-tubular', 0.01);
+        ring.setAttribute('color', color);
+        ring.setAttribute('material', 'shader: flat; opacity: 0.8; side: double');
+        ring.setAttribute('position', '0 0 0');
+        
+        // Orienter l'anneau vers la caméra
+        ring.setAttribute('look-at', '[camera]');
+        
+        // Animation d'expansion
+        ring.setAttribute('animation__expand', {
+          property: 'radius',
+          to: zone === 'bullseye' ? 0.6 : 0.4,
+          dur: 800,
+          easing: 'easeOutQuad'
+        });
+        
+        // Animation de disparition
+        ring.setAttribute('animation__fade', {
+          property: 'material.opacity',
+          to: 0,
+          dur: 800,
+          easing: 'easeInQuad'
+        });
+        
+        feedbackContainer.appendChild(ring);
+      }
+      
+      this.el.sceneEl.appendChild(feedbackContainer);
       
       // Supprimer après l'animation
       setTimeout(() => {
-        if (floatingText.parentNode) {
-          floatingText.parentNode.removeChild(floatingText);
+        if (feedbackContainer.parentNode) {
+          feedbackContainer.parentNode.removeChild(feedbackContainer);
         }
-      }, 1600);
+      }, 1800);
       
       console.log(`✓ Hit feedback: +${points} points in ${zone} zone`);
       

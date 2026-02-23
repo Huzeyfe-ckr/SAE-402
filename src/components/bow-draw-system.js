@@ -255,33 +255,28 @@ AFRAME.registerComponent("bow-draw-system", {
       this.data.minArrowSpeed +
       (this.data.maxArrowSpeed - this.data.minArrowSpeed) * drawRatio;
 
-    // --- DIRECTION SIMPLE : Copier directement l'orientation de l'arc ---
+    // --- DIRECTION : Utiliser l'orientation de l'arc ---
     this.leftHand.object3D.getWorldPosition(this.tempVectorLeft);
     
     // Utiliser directement la rotation de la main gauche (arc)
     const aimQuaternion = new THREE.Quaternion();
     this.leftHand.object3D.getWorldQuaternion(aimQuaternion);
     
-
-    // La flèche doit pointer vers l'avant (-Z)
-    // Vérifier que la flèche ne va pas vers l'arrière
-    const forwardDir = new THREE.Vector3(0, 0, -1);
-    forwardDir.applyQuaternion(aimQuaternion);
-    
-    // Si la flèche pointe vers l'arrière (z > 0 dans l'espace monde), corriger
+    // GARANTIR QUE LA FLÈCHE NE VA PAS EN ARRIÈRE
     const camera = this.el.sceneEl.camera;
-    if (camera) {
-      const cameraDir = new THREE.Vector3(0, 0, -1);
-      cameraDir.applyQuaternion(camera.quaternion);
-      
-      // Si la flèche va dans la direction opposée à la caméra, corriger
-      if (forwardDir.dot(cameraDir) < 0) {
-        console.log("⚠️ Direction arrière détectée, correction...");
-        // Inverser la direction
-        const correction = new THREE.Quaternion();
-        correction.setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI);
-        aimQuaternion.multiply(correction);
-      }
+    const cameraDir = new THREE.Vector3(0, 0, -1);
+    cameraDir.applyQuaternion(camera.quaternion);
+    
+    // Vérifier la direction initiale
+    const testDir = new THREE.Vector3(0, 0, -1);
+    testDir.applyQuaternion(aimQuaternion);
+    
+    // Si la flèche pointe vers l'arrière (dot product négatif avec direction camera), corriger
+    if (testDir.dot(cameraDir) < -0.1) {
+      console.log("⚠️ Direction arrière détectée, correction de 180°");
+      const correction = new THREE.Quaternion();
+      correction.setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI);
+      aimQuaternion.multiply(correction);
     }
     
     const compensationEuler = new THREE.Euler(

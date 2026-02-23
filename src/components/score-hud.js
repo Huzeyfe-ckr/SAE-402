@@ -143,33 +143,128 @@ AFRAME.registerComponent("score-hud", {
     if (!gameManager) return;
 
     setTimeout(() => {
+      const oldScore = this.score
       this.score = gameManager.totalScore;
+      const pointsGained = this.score - oldScore
+      
       if (this.scoreText) {
         this.scoreText.setAttribute("value", `Butin: ${this.score}`);
       }
-      this.flashScore();
+      
+      // Animation différente selon les points gagnés
+      this.flashScore(pointsGained);
+      
+      // Créer un feedback flottant pour les gros gains
+      if (pointsGained >= 50) {
+        this.showScorePopup(pointsGained)
+      }
     }, 10);
   },
 
-  flashScore: function () {
+  flashScore: function (pointsGained) {
     if (!this.scoreText) return;
 
-    this.scoreText.setAttribute("animation", {
+    // Déterminer l'intensité de l'animation selon les points
+    let scale = 1.3
+    let color = '#00ff00'
+    let duration = 150
+    
+    if (pointsGained >= 100) {
+      scale = 1.8
+      color = '#FFD700'
+      duration = 250
+    } else if (pointsGained >= 50) {
+      scale = 1.5
+      color = '#FFA500'
+      duration = 200
+    }
+
+    // Animation de scale avec bounce
+    this.scoreText.setAttribute("animation__flash", {
       property: "scale",
       from: "1 1 1",
-      to: "1.3 1.3 1",
-      dur: 150,
-      easing: "easeOutQuad",
+      to: `${scale} ${scale} 1`,
+      dur: duration,
+      easing: "easeOutBack",
     });
+    
+    // Animation de retour
+    setTimeout(() => {
+      if (this.scoreText) {
+        this.scoreText.setAttribute("animation__return", {
+          property: "scale",
+          to: "1 1 1",
+          dur: duration,
+          easing: "easeInOutQuad",
+        });
+      }
+    }, duration)
 
-    this.scoreText.setAttribute("color", "#00ff00");
+    // Changer la couleur temporairement
+    this.scoreText.setAttribute("color", color);
 
     setTimeout(() => {
       if (this.scoreText) {
         this.scoreText.setAttribute("color", this.COLORS.parchment);
-        this.scoreText.setAttribute("scale", "1 1 1");
       }
-    }, 200);
+    }, duration * 2);
+  },
+  
+  showScorePopup: function (points) {
+    if (!this.hudContainer) return
+    
+    // Créer un popup de score qui flotte au-dessus du HUD
+    const popup = document.createElement('a-text')
+    popup.setAttribute('value', `+${points}`)
+    popup.setAttribute('align', 'center')
+    popup.setAttribute('width', 1.5)
+    popup.setAttribute('font', 'mozillavr')
+    popup.setAttribute('position', '0 0.2 0.02')
+    
+    // Couleur selon les points
+    let color = '#00ff00'
+    if (points >= 200) {
+      color = '#FFD700'
+    } else if (points >= 100) {
+      color = '#FFA500'
+    }
+    popup.setAttribute('color', color)
+    
+    // Animation d'apparition
+    popup.setAttribute('scale', '0 0 0')
+    popup.setAttribute('animation__appear', {
+      property: 'scale',
+      to: '1.2 1.2 1.2',
+      dur: 200,
+      easing: 'easeOutBack'
+    })
+    
+    // Animation de montée
+    popup.setAttribute('animation__rise', {
+      property: 'position',
+      to: '0 0.6 0.02',
+      dur: 1200,
+      easing: 'easeOutCubic'
+    })
+    
+    // Animation de disparition
+    popup.setAttribute('animation__fade', {
+      property: 'opacity',
+      from: 1,
+      to: 0,
+      dur: 600,
+      delay: 600,
+      easing: 'easeInQuad'
+    })
+    
+    this.hudContainer.appendChild(popup)
+    
+    // Supprimer après l'animation
+    setTimeout(() => {
+      if (popup.parentNode) {
+        popup.parentNode.removeChild(popup)
+      }
+    }, 1500)
   },
 
   tick: function (time, deltaTime) {

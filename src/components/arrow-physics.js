@@ -172,8 +172,8 @@ tick: function (time, deltaTime) {
 
   // 3. NOUVEAU - Appliquer le vent
   let windAcc = new THREE.Vector3(0, 0, 0);
-  const windSystem = this.el.sceneEl.systems.wind;
-  if (windSystem) {
+  const windSystem = (this.el.sceneEl && this.el.sceneEl.components && this.el.sceneEl.components.wind) || (this.el.sceneEl && this.el.sceneEl.systems && this.el.sceneEl.systems.wind);
+  if (windSystem && typeof windSystem.getWindForce === 'function') {
     const windForce = windSystem.getWindForce();
     // Convertir la force du vent en accélération (F = m*a, donc a = F/m)
     windAcc = windForce.divideScalar(this.data.mass);
