@@ -7,12 +7,12 @@
 AFRAME.registerSystem("wind", {
   schema: {
     enabled: { type: "boolean", default: true },
-    baseForce: { type: "number", default: 0.02 }, // Force de base du vent - RÉDUIT
-    forceVariation: { type: "number", default: 0.03 }, // Variation aléatoire - RÉDUIT
-    changeInterval: { type: "number", default: 5000 }, // Changement de direction pendant le vent (ms)
+    baseForce: { type: "number", default: 0.008 }, // Force de base du vent - RÉDUIT
+    forceVariation: { type: "number", default: 0.012 }, // Variation aléatoire - RÉDUIT
+    changeInterval: { type: "number", default: 4000 }, // Changement de direction pendant le vent (ms)
     visualEnabled: { type: "boolean", default: true },
-    windDuration: { type: "number", default: 15000 }, // Durée du vent actif (15s)
-    calmDuration: { type: "number", default: 10000 }, // Durée du calme (10s)
+    windDuration: { type: "number", default: 8000 }, // Durée du vent actif (8s)
+    calmDuration: { type: "number", default: 20000 }, // Durée du calme (20s)
   },
 
   init: function () {
@@ -83,10 +83,10 @@ AFRAME.registerSystem("wind", {
           if (this.windActive) this.generateWind();
         }, this.data.changeInterval);
         
-        // Augmenter le son du vent
+        // Augmenter le son du vent - VOLUME FORT
         const windSound = document.getElementById("wind-sound");
         if (windSound) {
-          windSound.volume = 0.5;
+          windSound.volume = 0.8; // Volume élevé pour être clairement audible
           // Relancer le son si pas encore joué
           if (windSound.paused) {
             windSound.play().catch(() => {});
@@ -166,73 +166,68 @@ AFRAME.registerSystem("wind", {
     // Container principal - positionné en haut à gauche du champ de vue
     this.windVisuals = document.createElement("a-entity");
     this.windVisuals.id = "wind-visuals";
-    this.windVisuals.setAttribute("position", "-0.4 0.3 -0.8"); // Attaché à la caméra: gauche, haut, devant
-    camera.appendChild(this.windVisuals); // ATTACHÉ À LA CAMÉRA !
+    this.windVisuals.setAttribute("position", "-0.35 0.25 -0.6"); // Plus proche et visible
+    camera.appendChild(this.windVisuals);
     
-    console.log("📦 Container du vent attaché à la caméra (-0.4, 0.3, -0.8)");
+    console.log("📦 Container du vent attaché à la caméra");
     
-    // Texte indicateur - TAILLE AGRANDIE
+    // === NOUVEL INDICATEUR SIMPLE ===
+    
+    // Fond circulaire semi-transparent
+    const background = document.createElement("a-circle");
+    background.id = "wind-bg";
+    background.setAttribute("radius", "0.08");
+    background.setAttribute("color", "#000000");
+    background.setAttribute("material", "shader: flat; opacity: 0.6; side: double");
+    background.setAttribute("rotation", "0 0 0");
+    this.windVisuals.appendChild(background);
+    
+    // Texte d'état - au dessus
     const windText = document.createElement("a-text");
     windText.id = "wind-text";
-    windText.setAttribute("value", "VENT: 0.0 m/s");
-    windText.setAttribute("position", "0 0.25 0");
-    windText.setAttribute("color", "#00FFFF");
+    windText.setAttribute("value", "CALME");
+    windText.setAttribute("position", "0 0.12 0.01");
+    windText.setAttribute("color", "#88FF88");
     windText.setAttribute("align", "center");
-    windText.setAttribute("width", "1.5");
+    windText.setAttribute("width", "0.8");
     windText.setAttribute("font", "mozillavr");
-    windText.setAttribute("scale", "0.6 0.6 0.6");
     this.windVisuals.appendChild(windText);
     
-    // Conteneur flèches - TAILLE AGRANDIE
-    const arrowsContainer = document.createElement("a-entity");
-    arrowsContainer.id = "wind-arrows";
-    arrowsContainer.setAttribute("scale", "0.6 0.6 0.6"); // Taille visible
-    this.windVisuals.appendChild(arrowsContainer);
+    // Flèche directionnelle UNIQUE et GRANDE
+    this.windArrowContainer = document.createElement("a-entity");
+    this.windArrowContainer.id = "wind-arrow-main";
+    this.windArrowContainer.setAttribute("position", "0 0 0.01");
+    this.windVisuals.appendChild(this.windArrowContainer);
     
-    // 8 flèches directionnelles
-    const directions = [
-      { pos: "0 0 -0.45", rot: "0 0 0" },
-      { pos: "0.318 0 -0.318", rot: "0 -45 0" },
-      { pos: "0.45 0 0", rot: "0 -90 0" },
-      { pos: "0.318 0 0.318", rot: "0 -135 0" },
-      { pos: "0 0 0.45", rot: "0 180 0" },
-      { pos: "-0.318 0 0.318", rot: "0 135 0" },
-      { pos: "-0.45 0 0", rot: "0 90 0" },
-      { pos: "-0.318 0 -0.318", rot: "0 45 0" },
-    ];
+    // Corps de la flèche (triangle allongé)
+    const arrowBody = document.createElement("a-triangle");
+    arrowBody.id = "wind-arrow-body";
+    arrowBody.setAttribute("vertex-a", "0 0.06 0");
+    arrowBody.setAttribute("vertex-b", "-0.025 -0.04 0");
+    arrowBody.setAttribute("vertex-c", "0.025 -0.04 0");
+    arrowBody.setAttribute("color", "#00FF00");
+    arrowBody.setAttribute("material", "shader: flat; opacity: 0.9; side: double");
+    this.windArrowContainer.appendChild(arrowBody);
     
-    this.windArrows = [];
-    directions.forEach((dir, index) => {
-      const arrow = this.createWindArrow(dir.pos, dir.rot, index);
-      arrowsContainer.appendChild(arrow);
-      this.windArrows.push({ element: arrow, index });
-    });
+    // Ligne centrale
+    const arrowLine = document.createElement("a-plane");
+    arrowLine.setAttribute("width", "0.008");
+    arrowLine.setAttribute("height", "0.05");
+    arrowLine.setAttribute("position", "0 -0.015 0.001");
+    arrowLine.setAttribute("color", "#00FF00");
+    arrowLine.setAttribute("material", "shader: flat; opacity: 0.9");
+    this.windArrowContainer.appendChild(arrowLine);
     
-    // Particules visuelles - TAILLE AGRANDIE
-    const particlesContainer = document.createElement("a-entity");
-    particlesContainer.id = "wind-particles";
-    particlesContainer.setAttribute("scale", "0.6 0.6 0.6");
-    this.windVisuals.appendChild(particlesContainer);
-    
-    for (let i = 0; i < 5; i++) {
-      const particle = document.createElement("a-sphere");
-      particle.setAttribute("radius", "0.03");
-      particle.setAttribute("color", "#00FFFF");
-      particle.setAttribute("material", "shader: flat; opacity: 0.8");
-      particle.setAttribute("position", `${(Math.random() - 0.5) * 0.4} ${Math.random() * 0.3} ${(Math.random() - 0.5) * 0.4}`);
-      particlesContainer.appendChild(particle);
-    }
-    
-    // Démarrer son du vent - déclenché par interaction utilisateur via l'événement start-game
+    // Démarrer son du vent
     this.startWindSound();
     
-    // Écouter aussi le démarrage du jeu pour relancer le son
+    // Écouter le démarrage du jeu
     this.el.sceneEl.addEventListener("start-game", () => {
       this.startWindSound();
     });
     
     this.visualsCreated = true;
-    console.log("✨ Visuels du vent créés et visibles!");
+    console.log("✨ Nouvel indicateur de vent créé!");
   },
 
   startWindSound: function () {
@@ -260,122 +255,75 @@ AFRAME.registerSystem("wind", {
     }
   },
 
-  createWindArrow: function (position, rotation, index) {
-    const arrow = document.createElement("a-entity");
-    arrow.setAttribute("position", position);
-    arrow.setAttribute("rotation", rotation);
-    
-    const stem = document.createElement("a-cylinder");
-    stem.setAttribute("radius", "0.012");
-    stem.setAttribute("height", "0.20");
-    stem.setAttribute("color", "#00BFFF");
-    stem.setAttribute("material", "shader: flat; opacity: 0.8");
-    stem.setAttribute("position", "0 0.1 0");
-    arrow.appendChild(stem);
-    
-    const tip = document.createElement("a-cone");
-    tip.setAttribute("radius-bottom", "0.025");
-    tip.setAttribute("height", "0.12");
-    tip.setAttribute("color", "#00BFFF");
-    tip.setAttribute("material", "shader: flat; opacity: 1");
-    tip.setAttribute("position", "0 0.24 0");
-    arrow.appendChild(tip);
-    
-    arrow.id = `wind-arrow-${index}`;
-    return arrow;
-  },
+  // createWindArrow supprimé - utilisation d'une seule flèche
 
   updateWindVisuals: function () {
     if (!this.windVisuals) return;
     
     const windText = this.windVisuals.querySelector("#wind-text");
+    const arrowContainer = this.windArrowContainer;
+    const background = this.windVisuals.querySelector("#wind-bg");
     
-    // Période de calme - afficher "CALME"
+    // Période de calme - masquer la flèche
     if (!this.windActive || this.windIntensity < 0.001) {
       if (windText) {
-        windText.setAttribute("value", "🍃 CALME");
-        windText.setAttribute("color", "#88FF88"); // Vert clair
+        windText.setAttribute("value", "CALME");
+        windText.setAttribute("color", "#88FF88");
       }
-      
-      // Masquer toutes les flèches (faible opacité)
-      if (this.windArrows) {
-        this.windArrows.forEach((arrow) => {
-          arrow.element.setAttribute("scale", "0.5 0.5 0.5");
-          const stem = arrow.element.querySelector("a-cylinder");
-          const tip = arrow.element.querySelector("a-cone");
-          if (stem) stem.setAttribute("material", { opacity: 0.15, color: "#888888", shader: "flat" });
-          if (tip) tip.setAttribute("material", { opacity: 0.15, color: "#888888", shader: "flat" });
-        });
+      if (background) {
+        background.setAttribute("color", "#003300");
+      }
+      if (arrowContainer) {
+        arrowContainer.setAttribute("visible", "false");
       }
       return;
     }
     
-    // Période de vent - afficher l'intensité
+    // Période de vent - afficher et orienter la flèche
     if (windText) {
-      const displayIntensity = Math.min(this.windIntensity * 1000, 100).toFixed(0);
-      windText.setAttribute("value", `🌬️ VENT: ${displayIntensity}%`);
+      const displayIntensity = Math.min(this.windIntensity * 2000, 100).toFixed(0);
+      windText.setAttribute("value", `VENT ${displayIntensity}%`);
       
-      // Couleurs basées sur l'intensité
-      let color = "#00FFFF"; // Cyan - faible
-      if (this.windIntensity > 0.08) color = "#FF4444"; // Rouge - très fort
-      else if (this.windIntensity > 0.05) color = "#FFA500"; // Orange - fort
-      else if (this.windIntensity > 0.03) color = "#FFFF00"; // Jaune - modéré
+      // Couleur selon intensité
+      let color = "#00FF00"; // Vert - faible
+      if (this.windIntensity > 0.025) color = "#FF4444"; // Rouge - fort
+      else if (this.windIntensity > 0.015) color = "#FFA500"; // Orange - moyen
+      else if (this.windIntensity > 0.008) color = "#FFFF00"; // Jaune - modéré
       
       windText.setAttribute("color", color);
+      
+      // Mettre à jour la couleur de la flèche aussi
+      const arrowBody = this.windVisuals.querySelector("#wind-arrow-body");
+      if (arrowBody) {
+        arrowBody.setAttribute("color", color);
+      }
+      const arrowLine = this.windVisuals.querySelector("a-plane");
+      if (arrowLine) {
+        arrowLine.setAttribute("color", color);
+      }
     }
     
-    // Mettre à jour les flèches directionnelles
-    if (this.windArrows && this.windArrows.length > 0) {
-      const windDir = this.windForce.clone().normalize();
-      windDir.y = 0; // Ignorer la composante verticale
+    if (background) {
+      background.setAttribute("color", "#001133");
+    }
+    
+    // Orienter la flèche dans la direction du vent
+    if (arrowContainer) {
+      arrowContainer.setAttribute("visible", "true");
       
-      if (windDir.length() < 0.01) return;
-      windDir.normalize();
+      // Calculer l'angle de rotation (sur le plan XZ -> rotation Z pour l'affichage 2D)
+      const windDir = this.windForce.clone();
+      windDir.y = 0;
       
-      // Directions des 8 flèches
-      const standardDirs = [
-        new THREE.Vector3(0, 0, -1),         // 0: Avant
-        new THREE.Vector3(0.707, 0, -0.707), // 1: Avant-Droit
-        new THREE.Vector3(1, 0, 0),          // 2: Droit
-        new THREE.Vector3(0.707, 0, 0.707),  // 3: Arrière-Droit
-        new THREE.Vector3(0, 0, 1),          // 4: Arrière
-        new THREE.Vector3(-0.707, 0, 0.707), // 5: Arrière-Gauche
-        new THREE.Vector3(-1, 0, 0),         // 6: Gauche
-        new THREE.Vector3(-0.707, 0, -0.707),// 7: Avant-Gauche
-      ];
-      
-      // Trouver la meilleure direction
-      let bestIndex = 0;
-      let bestDot = -Infinity;
-      standardDirs.forEach((dir, idx) => {
-        const dot = windDir.dot(dir);
-        if (dot > bestDot) {
-          bestDot = dot;
-          bestIndex = idx;
-        }
-      });
-      
-      // Mettre à jour l'apparence de chaque flèche
-      this.windArrows.forEach((arrow, idx) => {
-        const isActive = (idx === bestIndex);
-        const scale = isActive ? 1.4 : 0.8;
-        const color = isActive ? "#00FF00" : "#00BFFF"; // Vert vif pour la direction active
-        const opacity = isActive ? 1.0 : 0.3;
+      if (windDir.length() > 0.001) {
+        windDir.normalize();
+        // Angle en radians: atan2(x, -z) pour avoir 0° vers l'avant
+        const angleRad = Math.atan2(windDir.x, -windDir.z);
+        const angleDeg = THREE.MathUtils.radToDeg(angleRad);
         
-        arrow.element.setAttribute("scale", `${scale} ${scale} ${scale}`);
-        
-        const stem = arrow.element.querySelector("a-cylinder");
-        const tip = arrow.element.querySelector("a-cone");
-        
-        if (stem) {
-          stem.setAttribute("color", color);
-          stem.setAttribute("material", { opacity: opacity, shader: "flat" });
-        }
-        if (tip) {
-          tip.setAttribute("color", color);
-          tip.setAttribute("material", { opacity: opacity, shader: "flat" });
-        }
-      });
+        // Appliquer la rotation (sur Z car la flèche pointe vers le haut par défaut)
+        arrowContainer.setAttribute("rotation", `0 0 ${-angleDeg}`);
+      }
     }
   },
 
