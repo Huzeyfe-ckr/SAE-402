@@ -4,6 +4,8 @@
  * Spawn sur les murs créés par wall-debug
  */
 
+import { TARGET_TYPES, getRandomTargetType, createTargetHTML } from "../config/target-types.js";
+
 AFRAME.registerSystem("game-manager", {
   schema: {
     spawnInterval: { type: "number", default: 50 }, // 0.05 secondes - très rapide!
@@ -378,15 +380,21 @@ AFRAME.registerSystem("game-manager", {
 
     const scale = 0.08 + Math.random() * 0.04; // Entre 0.08 et 0.12
 
-    let points = 10;
-    let hp = 1;
+    // Sélectionner un type de cible aléatoire
+    const targetType = getRandomTargetType();
+
+    let points = targetType.points;
+    let hp = targetType.hp;
+    let flySpeed = targetType.flySpeed;
 
     if (this.data.difficulty === "hard") {
-      points = 20;
-      hp = Math.floor(Math.random() * 3) + 1;
+      points = Math.floor(points * 1.5);
+      hp = Math.floor(Math.random() * 3) + 2;
+      flySpeed *= 1.3;
     } else if (this.data.difficulty === "normal") {
-      points = 15;
-      hp = Math.random() > 0.7 ? 2 : 1;
+      points = Math.floor(points * 1.1);
+      hp = Math.random() > 0.6 ? targetType.hp + 1 : targetType.hp;
+      flySpeed *= 1.1;
     }
 
     if (spawnData.surfaceType === "vertical") {
@@ -401,10 +409,8 @@ AFRAME.registerSystem("game-manager", {
     // NE PAS utiliser static-body car ça bloque le mouvement
     // Les collisions sont gérées par arrow-physics
 
-    // Créer la géométrie de la cible AVANT d'ajouter target-behavior
-    target.innerHTML = `
-      <a-entity gltf-model="#target-fly" scale="${scale} ${scale} ${scale}" animation-mixer="clip: metarig|Fly; loop: repeat; timeScale: 1"></a-entity>
-    `;
+    // Créer la géométrie de la cible avec le bon type
+    target.innerHTML = createTargetHTML(targetType);
 
     // IMPORTANT: Ajouter l'élément au DOM AVANT d'ajouter target-behavior
     // pour que tick() soit appelé correctement
@@ -418,12 +424,12 @@ AFRAME.registerSystem("game-manager", {
       points,
       hp,
       movable: true,
-      flySpeed: 1.0 + Math.random() * 1.0, // Vitesse entre 1.0 et 2.0
+      flySpeed,
       flyRadius: 2.0 + Math.random() * 2.0, // Rayon entre 2.0 et 4.0
       flyHeight: 0.3 + Math.random() * 0.4 // Variation hauteur entre 0.3 et 0.7
     });
 
-    console.log(`🦅 Oiseau spawné avec movable=true, flySpeed=${target.getAttribute('target-behavior').flySpeed}`);
+    console.log(`🦅 ${targetType.name} spawné (${points}pts, ${hp}HP, flySpeed=${flySpeed.toFixed(2)})`);
 
     if (this.useAnchors && this.anchorManager) {
       setTimeout(() => {
