@@ -8,8 +8,8 @@ import { TARGET_TYPES, getRandomTargetType, createTargetHTML } from "../config/t
 
 AFRAME.registerSystem("game-manager", {
   schema: {
-    spawnInterval: { type: "number", default: 50 }, // 0.05 secondes - très rapide!
-    maxTargets: { type: "number", default: 30 }, // Augmenté: plus de cibles simultanées
+    spawnInterval: { type: "number", default: 5 }, // 50ms entre les spawns, réduit pour plus de dynamisme
+    maxTargets: { type: "number", default: 12 }, // Réduit de 30 pour moins de lag
     difficulty: { type: "string", default: "normal" }, // easy, normal, hard
     requireRealSurfaces: { type: "boolean", default: true },
   },
@@ -385,16 +385,16 @@ AFRAME.registerSystem("game-manager", {
 
     let points = targetType.points;
     let hp = targetType.hp;
-    let flySpeed = targetType.flySpeed;
+    let flySpeed = targetType.flySpeed * 0.8; // Réduire de 20% pour moins de lag
 
     if (this.data.difficulty === "hard") {
       points = Math.floor(points * 1.5);
       hp = Math.floor(Math.random() * 3) + 2;
-      flySpeed *= 1.3;
+      flySpeed *= 1.2; // Augmenter un peu pour hard mais pas trop
     } else if (this.data.difficulty === "normal") {
       points = Math.floor(points * 1.1);
       hp = Math.random() > 0.6 ? targetType.hp + 1 : targetType.hp;
-      flySpeed *= 1.1;
+      flySpeed *= 1.05;
     }
 
     if (spawnData.surfaceType === "vertical") {

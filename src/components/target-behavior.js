@@ -6,6 +6,8 @@
  * NOUVEAU: Les oiseaux volent autour de la zone après spawn
  */
 
+import { getDeathAnimation } from '../config/target-types.js';
+
 AFRAME.registerComponent('target-behavior', {
   schema: {
     points: { type: 'number', default: 10 },
@@ -677,6 +679,7 @@ AFRAME.registerComponent('target-behavior', {
     
     // Émettre événement de destruction IMMÉDIATEMENT
     try {
+      console.log(`📢 Émission événement target-destroyed pour ${targetEl.id}`)
       sceneEl.emit('target-destroyed', {
         points: this.data.points,
         totalHits: this.hitCount,
@@ -684,6 +687,7 @@ AFRAME.registerComponent('target-behavior', {
         surfaceType: this.surfaceType,
         targetId: targetEl.id
       })
+      console.log(`✅ Événement target-destroyed émis avec succès`)
     } catch (e) {
       console.error('Event emission error:', e)
     }
@@ -691,6 +695,25 @@ AFRAME.registerComponent('target-behavior', {
     // SOLUTION XR: Utiliser les animations A-Frame natives qui fonctionnent en WebXR
     // au lieu de requestAnimationFrame qui ne fonctionne pas en mode XR
     try {
+      // Obtenir l'animation de mort spécifique au type de cible
+      const glbChild = targetEl.querySelector('[gltf-model]')
+      let deathAnim = {
+        rotation: '360 360 360',
+        scale: '0 0 0',
+        duration: 300,
+        easing: 'easeInQuad'
+      }
+      
+      if (glbChild) {
+        const glbModelAttr = glbChild.getAttribute('gltf-model')
+        if (glbModelAttr) {
+          // Extraire l'assetId (format: #asset-id)
+          const assetId = glbModelAttr.replace('#', '')
+          deathAnim = getDeathAnimation(assetId)
+          console.log(`💀 Animation de mort pour ${assetId}: ${deathAnim.rotation}, durée ${deathAnim.duration}ms`)
+        }
+      }
+      
       // Supprimer les anciennes animations si elles existent
       targetEl.removeAttribute('animation__scale')
       targetEl.removeAttribute('animation__rotation')
@@ -698,17 +721,17 @@ AFRAME.registerComponent('target-behavior', {
       // Animation de scale vers 0 avec A-Frame animation
       targetEl.setAttribute('animation__scale', {
         property: 'scale',
-        to: '0 0 0',
-        dur: 200,
-        easing: 'easeInQuad'
+        to: deathAnim.scale,
+        dur: deathAnim.duration,
+        easing: deathAnim.easing
       })
       
       // Animation de rotation avec A-Frame animation
       targetEl.setAttribute('animation__rotation', {
         property: 'rotation',
-        to: '0 360 0',
-        dur: 200,
-        easing: 'linear'
+        to: deathAnim.rotation,
+        dur: deathAnim.duration,
+        easing: deathAnim.easing
       })
       
       // Écouter la fin de l'animation pour supprimer l'élément
@@ -722,13 +745,14 @@ AFRAME.registerComponent('target-behavior', {
       
       targetEl.addEventListener('animationcomplete__scale', onAnimationComplete)
       
-      // Sécurité: supprimer après 500ms si l'animation ne se termine pas
+      // Sécurité: supprimer après timeout si l'animation ne se termine pas
+      const timeout = deathAnim.duration + 100
       setTimeout(() => {
         console.log('🗑️ Timeout de sécurité, suppression de la cible')
         if (targetEl && targetEl.parentNode) {
           targetEl.parentNode.removeChild(targetEl)
         }
-      }, 500)
+      }, timeout)
       
     } catch (e) {
       console.error('Destroy animation error:', e)

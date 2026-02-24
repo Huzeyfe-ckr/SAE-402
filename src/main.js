@@ -23,6 +23,7 @@ import "./components/model-debug.js";
 
 // Import des systèmes
 import "./systems/game-manager.js";
+import "./systems/combo-system.js";
 import "./components/wind-system.js";
 
 document.addEventListener("DOMContentLoaded", () => {
