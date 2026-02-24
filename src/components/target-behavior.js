@@ -42,6 +42,12 @@ AFRAME.registerComponent('target-behavior', {
     this.lastTickTime = Date.now()
     this.tickInterval = null
     
+    // NOUVEAU: Variables pour le rebond aux murs
+    this.reboundDistance = 0.5 // Distance de détection du rebond (m)
+    this.lastBounceTime = 0 // Timestamp du dernier rebond
+    this.bounceTimelock = 300 // Cooldown entre rebonds (ms)
+    this.bounceForce = 1.5 // Intensité du rebond
+    
     console.log(`🐦 Oiseau créé: ${this.data.points} points, ${this.data.hp} HP, movable=${this.data.movable}`) // DEBUG
     
     // BACKUP: Si tick() n'est pas appelé par A-Frame, utiliser setInterval
@@ -86,15 +92,23 @@ AFRAME.registerComponent('target-behavior', {
       // Limites par défaut si pas de wall-debug
       this.roomBounds = {
         minX: -4, maxX: 4,
-        minY: 2.8, maxY: 8.5, // CORRIGÉ: altitude plus haute (1.8m - 3m)
+        minY: 2.8, maxY: 8.5,
         minZ: -4, maxZ: 4
       }
+    }
+    
+    // IMPORTANT: Réajuster flightCenter pour qu'il soit dans les bounds
+    if (this.roomBounds) {
+      this.flightCenter.x = Math.max(this.roomBounds.minX + 0.5, Math.min(this.roomBounds.maxX - 0.5, this.flightCenter.x))
+      this.flightCenter.z = Math.max(this.roomBounds.minZ + 0.5, Math.min(this.roomBounds.maxZ - 0.5, this.flightCenter.z))
+      this.flightCenter.y = Math.max(this.roomBounds.minY + 0.3, Math.min(this.roomBounds.maxY - 0.3, this.flightCenter.y))
+      console.log(`🎯 Centre de vol réajusté à (${this.flightCenter.x.toFixed(2)}, ${this.flightCenter.y.toFixed(2)}, ${this.flightCenter.z.toFixed(2)})`)
     }
     
     this.isFlying = true
     this.flightTime = 0
     
-    console.log(`🦅 Oiseau EN VOL! Position: (${worldPos.x.toFixed(2)}, ${worldPos.y.toFixed(2)}, ${worldPos.z.toFixed(2)})`) // DEBUG
+    console.log(`🦅 Oiseau EN VOL! Position: (${worldPos.x.toFixed(2)}, ${worldPos.y.toFixed(2)}, ${worldPos.z.toFixed(2)})`)
   },
 
   /**
@@ -146,7 +160,7 @@ AFRAME.registerComponent('target-behavior', {
     // Stocker aussi les murs pour la détection de proximité
     this.wallsData = wallData
     
-    // console.log(`🏠 Limites de vol: X[${this.roomBounds.minX.toFixed(1)}, ${this.roomBounds.maxX.toFixed(1)}] Y[${this.roomBounds.minY.toFixed(1)}, ${this.roomBounds.maxY.toFixed(1)}] Z[${this.roomBounds.minZ.toFixed(1)}, ${this.roomBounds.maxZ.toFixed(1)}] (marge: ${margin}m)`) // Trop verbeux
+    console.log(`🏠 Limites DE VOL CALCULÉES: X[${this.roomBounds.minX.toFixed(1)}, ${this.roomBounds.maxX.toFixed(1)}] Z[${this.roomBounds.minZ.toFixed(1)}, ${this.roomBounds.maxZ.toFixed(1)}] Y[${this.roomBounds.minY.toFixed(1)}, ${this.roomBounds.maxY.toFixed(1)}]`)
   },
 
   /**
@@ -234,38 +248,12 @@ AFRAME.registerComponent('target-behavior', {
     const baseY = this.startPosition.y
     let newY = baseY + Math.sin(this.flightTime * 1.5) * heightVar
     
-    // Appliquer les limites de la pièce avec marge agressive
+    // NOUVEAU: Appliquer le système de rebond aux murs
     if (this.roomBounds) {
-      // Appliquer les limites dures
-      newX = Math.max(this.roomBounds.minX, Math.min(this.roomBounds.maxX, newX))
-      newY = Math.max(this.roomBounds.minY, Math.min(this.roomBounds.maxY, newY))
-      newZ = Math.max(this.roomBounds.minZ, Math.min(this.roomBounds.maxZ, newZ))
-      
-      // Appliquer une zone de "confort" supplémentaire pour repousser l'oiseau vers le centre
-      const comfortMargin = 0.8
-      const comfortMinX = this.roomBounds.minX + comfortMargin
-      const comfortMaxX = this.roomBounds.maxX - comfortMargin
-      const comfortMinZ = this.roomBounds.minZ + comfortMargin
-      const comfortMaxZ = this.roomBounds.maxZ - comfortMargin
-      
-      // Si l'oiseau s'approche trop, le repousser vers le centre
-      if (newX < comfortMinX) {
-        newX = comfortMinX + Math.sin(this.flightTime * 2) * 0.3
-      } else if (newX > comfortMaxX) {
-        newX = comfortMaxX - Math.sin(this.flightTime * 2) * 0.3
-      }
-      
-      if (newZ < comfortMinZ) {
-        newZ = comfortMinZ + Math.cos(this.flightTime * 2) * 0.3
-      } else if (newZ > comfortMaxZ) {
-        newZ = comfortMaxZ - Math.cos(this.flightTime * 2) * 0.3
-      }
-      
-      if (newY < this.roomBounds.minY + 0.3) {
-        newY = this.roomBounds.minY + 0.3
-      } else if (newY > this.roomBounds.maxY - 0.3) {
-        newY = this.roomBounds.maxY - 0.3
-      }
+      const bounceResult = this.checkAndApplyBouncing(newX, newY, newZ)
+      newX = bounceResult.x
+      newY = bounceResult.y
+      newZ = bounceResult.z
     }
     
     // Appliquer la nouvelle position - Translater le modèle GLB enfant
@@ -646,6 +634,70 @@ AFRAME.registerComponent('target-behavior', {
       console.error('Floating text error:', e);
       console.log(`✓ Hit feedback: +${points} points in ${zone} zone`);
     }
+  },
+
+  /**
+   * NOUVEAU: Détecte les collisions avec les murs et applique des rebonds
+   */
+  checkAndApplyBouncing: function (currentX, currentY, currentZ) {
+    let finalX = currentX
+    let finalY = currentY
+    let finalZ = currentZ
+    let bounced = false
+    
+    const now = Date.now()
+    const canBounce = (now - this.lastBounceTime) > this.bounceTimelock
+    
+    // Détection de proximité avec les murs X (gauche et droit)
+    if (currentX < this.roomBounds.minX + this.reboundDistance) {
+      // Clamper et rebondir
+      finalX = this.roomBounds.minX + this.reboundDistance + 0.1
+      if (canBounce && this.flightDirection > 0) {
+        this.flightDirection *= -1
+        this.lastBounceTime = now
+        console.log(`🔄 REBOND MUR GAUCHE - Sera à X=${finalX.toFixed(2)}`)
+        bounced = true
+      }
+    } else if (currentX > this.roomBounds.maxX - this.reboundDistance) {
+      // Clamper et rebondir
+      finalX = this.roomBounds.maxX - this.reboundDistance - 0.1
+      if (canBounce && this.flightDirection < 0) {
+        this.flightDirection *= -1
+        this.lastBounceTime = now
+        console.log(`🔄 REBOND MUR DROIT - Sera à X=${finalX.toFixed(2)}`)
+        bounced = true
+      }
+    }
+    
+    // Détection de proximité avec les murs Z (avant et arrière)
+    if (currentZ < this.roomBounds.minZ + this.reboundDistance) {
+      // Clamper et rebondir
+      finalZ = this.roomBounds.minZ + this.reboundDistance + 0.1
+      if (canBounce) {
+        this.flightDirection *= -1
+        this.lastBounceTime = now
+        console.log(`🔄 REBOND MUR AVANT - Sera à Z=${finalZ.toFixed(2)}`)
+        bounced = true
+      }
+    } else if (currentZ > this.roomBounds.maxZ - this.reboundDistance) {
+      // Clamper et rebondir
+      finalZ = this.roomBounds.maxZ - this.reboundDistance - 0.1
+      if (canBounce) {
+        this.flightDirection *= -1
+        this.lastBounceTime = now
+        console.log(`🔄 REBOND MUR ARRIÈRE - Sera à Z=${finalZ.toFixed(2)}`)
+        bounced = true
+      }
+    }
+    
+    // Détection de proximité avec le sol et plafond (mais pas de rebond horizontal)
+    if (currentY < this.roomBounds.minY + this.reboundDistance) {
+      finalY = this.roomBounds.minY + this.reboundDistance + 0.1
+    } else if (currentY > this.roomBounds.maxY - this.reboundDistance) {
+      finalY = this.roomBounds.maxY - this.reboundDistance - 0.1
+    }
+    
+    return { x: finalX, y: finalY, z: finalZ }
   },
 
   destroy: function (lastPoints) {
