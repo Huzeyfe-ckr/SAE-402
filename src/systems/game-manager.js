@@ -7,7 +7,7 @@
 AFRAME.registerSystem("game-manager", {
   schema: {
     spawnInterval: { type: "number", default: 50 }, // 0.05 secondes - très rapide!
-    maxTargets: { type: "number", default: 50 }, // Augmenté: plus de cibles simultanées
+    maxTargets: { type: "number", default: 30 }, // Augmenté: plus de cibles simultanées
     difficulty: { type: "string", default: "normal" }, // easy, normal, hard
     requireRealSurfaces: { type: "boolean", default: true },
   },
@@ -118,7 +118,7 @@ AFRAME.registerSystem("game-manager", {
       this.gameTime--;
       this.updateTimerDisplay();
 
-      console.log(`⏱️ Temps restant: ${this.gameTime}s`);
+      // console.log(`⏱️ Temps restant: ${this.gameTime}s`); // Commenté - trop verbeux
 
       if (this.gameTime <= 0) {
         this.endGame();
@@ -376,7 +376,7 @@ AFRAME.registerSystem("game-manager", {
       if (existing.object3D.position.distanceTo(pos) < minDistance) return;
     }
 
-    const scale = 0.003 + Math.random() * 0.004; // Entre 0.003 et 0.007
+    const scale = 0.08 + Math.random() * 0.04; // Entre 0.08 et 0.12
 
     let points = 10;
     let hp = 1;
@@ -403,7 +403,7 @@ AFRAME.registerSystem("game-manager", {
 
     // Créer la géométrie de la cible AVANT d'ajouter target-behavior
     target.innerHTML = `
-      <a-entity gltf-model="#target-model" scale="${scale} ${scale} ${scale}"></a-entity>
+      <a-entity gltf-model="#target-fly" scale="${scale} ${scale} ${scale}" animation-mixer="clip: metarig|Fly; loop: repeat; timeScale: 1"></a-entity>
     `;
 
     // IMPORTANT: Ajouter l'élément au DOM AVANT d'ajouter target-behavior

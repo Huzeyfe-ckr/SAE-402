@@ -19,6 +19,7 @@ import "./components/vr-menu.js";
 import "./components/end-menu.js";
 import "./components/room-scanner.js";
 import "./components/wall-debug.js";
+import "./components/model-debug.js";
 
 // Import des systèmes
 import "./systems/game-manager.js";

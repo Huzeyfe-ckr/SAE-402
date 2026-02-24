@@ -40,7 +40,7 @@ AFRAME.registerComponent('target-behavior', {
     this.lastTickTime = Date.now()
     this.tickInterval = null
     
-    console.log(`🐦 Oiseau créé: ${this.data.points} points, ${this.data.hp} HP, movable=${this.data.movable}`)
+    console.log(`🐦 Oiseau créé: ${this.data.points} points, ${this.data.hp} HP, movable=${this.data.movable}`) // DEBUG
     
     // BACKUP: Si tick() n'est pas appelé par A-Frame, utiliser setInterval
     // Vérifier après 2 secondes si tick a été appelé
@@ -92,7 +92,7 @@ AFRAME.registerComponent('target-behavior', {
     this.isFlying = true
     this.flightTime = 0
     
-    console.log(`🦅 Oiseau EN VOL! Position: (${worldPos.x.toFixed(2)}, ${worldPos.y.toFixed(2)}, ${worldPos.z.toFixed(2)})`)
+    console.log(`🦅 Oiseau EN VOL! Position: (${worldPos.x.toFixed(2)}, ${worldPos.y.toFixed(2)}, ${worldPos.z.toFixed(2)})`) // DEBUG
   },
 
   /**
@@ -144,19 +144,13 @@ AFRAME.registerComponent('target-behavior', {
     // Stocker aussi les murs pour la détection de proximité
     this.wallsData = wallData
     
-    console.log(`🏠 Limites de vol: X[${this.roomBounds.minX.toFixed(1)}, ${this.roomBounds.maxX.toFixed(1)}] Y[${this.roomBounds.minY.toFixed(1)}, ${this.roomBounds.maxY.toFixed(1)}] Z[${this.roomBounds.minZ.toFixed(1)}, ${this.roomBounds.maxZ.toFixed(1)}] (marge: ${margin}m)`)
+    // console.log(`🏠 Limites de vol: X[${this.roomBounds.minX.toFixed(1)}, ${this.roomBounds.maxX.toFixed(1)}] Y[${this.roomBounds.minY.toFixed(1)}, ${this.roomBounds.maxY.toFixed(1)}] Z[${this.roomBounds.minZ.toFixed(1)}, ${this.roomBounds.maxZ.toFixed(1)}] (marge: ${margin}m)`) // Trop verbeux
   },
 
   /**
    * Met à jour la position de l'oiseau en vol (appelé chaque frame)
    */
   tick: function (time, deltaTime) {
-    // Debug: afficher une fois que tick est appelé
-    if (!this.tickLogged) {
-      console.log(`🔄 tick() appelé pour ${this.el.id}, movable=${this.data.movable}, isFlying=${this.isFlying}`)
-      this.tickLogged = true
-    }
-    
     // Déléguer à updateFlight() - même logique que le backup interval
     this.updateFlight(time, deltaTime)
   },
@@ -201,7 +195,7 @@ AFRAME.registerComponent('target-behavior', {
     if (this.data.movable && !this.isFlying && this.initTime) {
       const elapsed = Date.now() - this.initTime
       if (elapsed >= this.flyStartDelay) {
-        console.log(`🕐 Délai écoulé (${elapsed}ms), démarrage du vol pour ${this.el.id}...`)
+      // console.log(`🕐 Délai écoulé (${elapsed}ms), démarrage du vol pour ${this.el.id}...`) // Commenté - trop verbeux
         this.startFlying()
       }
       return
@@ -281,11 +275,11 @@ AFRAME.registerComponent('target-behavior', {
       this.el.object3D.position.set(newX, newY, newZ)
     }
     
-    // Debug: log périodique
-    if (!this.lastPosLog2 || this.flightTime - this.lastPosLog2 > 2) {
-      console.log(`🦅 Vol: pos=(${newX.toFixed(2)}, ${newY.toFixed(2)}, ${newZ.toFixed(2)})`)
-      this.lastPosLog2 = this.flightTime
-    }
+    // Debug: log périodique (commenté - trop verbeux)
+    // if (!this.lastPosLog2 || this.flightTime - this.lastPosLog2 > 2) {
+    //   console.log(`🦅 Vol: pos=(${newX.toFixed(2)}, ${newY.toFixed(2)}, ${newZ.toFixed(2)})`)
+    //   this.lastPosLog2 = this.flightTime
+    // }
     
     // Orienter l'oiseau - UTILISER setAttribute pour A-Frame
     const velocity = new THREE.Vector3(
