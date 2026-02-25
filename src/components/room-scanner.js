@@ -33,13 +33,11 @@ AFRAME.registerComponent("room-scanner", {
       }, 1000);
     });
 
-    console.log("🔍 Room Scanner initialisé");
   },
 
   startScan: function () {
     if (this.isScanning || this.scanComplete) return;
 
-    console.log("🔍 Démarrage du scan de la pièce...");
     this.isScanning = true;
     this.scanStartTime = Date.now();
     this.detectedWalls.clear();
@@ -104,7 +102,7 @@ AFRAME.registerComponent("room-scanner", {
     counter.setAttribute("width", "1.5");
     this.scanUI.appendChild(counter);
 
-    // Bouton de démarrage (invisible au début)
+    // Bouton de démarrage (invisible au début, visible quand scan OK)
     const button = document.createElement("a-entity");
     button.setAttribute("id", "scan-start-button");
     button.setAttribute("geometry", {
@@ -118,10 +116,9 @@ AFRAME.registerComponent("room-scanner", {
       shader: "flat",
     });
     button.setAttribute("position", "0 -0.25 0.01");
-    button.setAttribute("class", "clickable");
-    button.addEventListener("click", () => {
-      this.completeScan();
-    });
+    button.setAttribute("class", "arrow-targetable");
+    this.scanButton = button;
+    this.scanButtonWorldPos = new THREE.Vector3();
     this.scanUI.appendChild(button);
 
     const buttonText = document.createElement("a-text");
@@ -194,12 +191,12 @@ AFRAME.registerComponent("room-scanner", {
     const hasEnoughWalls = wallCount >= this.data.minWalls;
 
     if (hasEnoughSurfaces && hasEnoughWalls) {
-      instructions.setAttribute("value", "✅ Scan complet !");
+      instructions.setAttribute("value", "✅ Scan complet !\nTirez une flèche pour démarrer");
       instructions.setAttribute("color", "#4CAF50");
       
       // Afficher le bouton
       button.setAttribute("material", "opacity", 1);
-      buttonText.setAttribute("value", "DÉMARRER LE JEU");
+      buttonText.setAttribute("value", "🎯 TIREZ ICI");
     } else {
       let message = "Regardez autour de vous\n";
       if (!hasEnoughWalls) {
@@ -214,9 +211,6 @@ AFRAME.registerComponent("room-scanner", {
   completeScan: function () {
     if (!this.isScanning) return;
 
-    console.log("✅ Scan de la pièce terminé !");
-    console.log(`📊 ${this.detectedSurfaces.length} surfaces détectées`);
-    console.log(`🧱 ${this.detectedWalls.size} murs détectés:`, Array.from(this.detectedWalls));
 
     this.isScanning = false;
     this.scanComplete = true;
@@ -240,6 +234,22 @@ AFRAME.registerComponent("room-scanner", {
     this.el.sceneEl.emit("start-game");
   },
 
+  // Détection de collision avec une flèche
+  checkArrowHit: function (arrowPosition) {
+    if (!this.isScanning || !this.scanButton) return false;
+
+    this.scanButton.object3D.getWorldPosition(this.scanButtonWorldPos);
+    const distance = arrowPosition.distanceTo(this.scanButtonWorldPos);
+
+    // Rayon de détection 0.35m (taille du bouton ~0.6m)
+    if (distance < 0.35) {
+      this.completeScan();
+      return true;
+    }
+
+    return false;
+  },
+
   tick: function (time, deltaTime) {
     if (!this.isScanning) return;
 
@@ -248,7 +258,6 @@ AFRAME.registerComponent("room-scanner", {
     if (elapsed > this.data.scanDuration) {
       const hasMinimum = this.detectedSurfaces.length >= this.data.minSurfaces;
       if (hasMinimum) {
-        console.log("⏱️ Durée de scan dépassée - auto-complétion");
         this.completeScan();
       }
     }

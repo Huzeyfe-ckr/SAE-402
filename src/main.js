@@ -19,7 +19,7 @@ import "./components/vr-menu.js";
 import "./components/end-menu.js";
 import "./components/room-scanner.js";
 import "./components/wall-debug.js";
-import "./components/model-debug.js";
+// model-debug.js supprimé - fichier de debug
 
 // Import des systèmes
 import "./systems/game-manager.js";
@@ -30,12 +30,6 @@ document.addEventListener("DOMContentLoaded", () => {
   const scene = document.querySelector("a-scene");
 
   scene.addEventListener("loaded", () => {
-    console.log("🏹 SAE 4.02 - Archery XR initialisé");
-    console.log("📦 Moteur physique: Ammo.js (aframe-physics-system)");
-    console.log(
-      "🎮 WebXR ready - Utilisez un casque VR pour une expérience immersive",
-    );
-    console.log("🌍 Scene Mesh activé pour l'ancrage spatial");
 
     // Afficher les instructions
     showInstructions();

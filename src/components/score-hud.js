@@ -38,7 +38,6 @@ AFRAME.registerComponent("score-hud", {
       this.hideHUD();
     });
 
-    console.log("🎯 Score HUD VR médiéval prêt");
   },
 
   showHUD: function () {
@@ -135,7 +134,6 @@ AFRAME.registerComponent("score-hud", {
     this.scoreText.setAttribute("position", "0 -0.1 0.01");
     this.hudContainer.appendChild(this.scoreText);
 
-    console.log("🎨 HUD VR médiéval créé");
   },
 
   onScoreUpdate: function (evt) {

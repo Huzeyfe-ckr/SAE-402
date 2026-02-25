@@ -8,16 +8,45 @@
 AFRAME.registerComponent("vr-menu", {
   init: function () {
     this.isVisible = true;
+    this.scanComplete = false;
 
     // Créer le panneau de menu
     this.createMenuPanel();
+
+    // Écouter l'événement de scan terminé
+    this.el.sceneEl.addEventListener("walls-ready", () => {
+      this.onScanComplete();
+    });
 
     // Écouter l'événement de démarrage du jeu
     this.el.sceneEl.addEventListener("start-game", () => {
       this.hideMenu();
     });
 
-    console.log("📋 VR Menu initialisé");
+    // Timeout de sécurité - si pas de walls-ready après 8s, afficher quand même le bouton
+    setTimeout(() => {
+      if (!this.scanComplete) {
+        this.onScanComplete();
+      }
+    }, 8000);
+  },
+
+  onScanComplete: function () {
+    if (this.scanComplete) return;
+    this.scanComplete = true;
+
+    // Cacher le texte de scan
+    if (this.scanText) {
+      this.scanText.setAttribute("visible", false);
+    }
+    if (this.scanSpinner) {
+      this.scanSpinner.setAttribute("visible", false);
+    }
+
+    // Afficher le bouton de jeu
+    if (this.playButton) {
+      this.playButton.setAttribute("visible", true);
+    }
   },
 
   createMenuPanel: function () {
@@ -164,14 +193,53 @@ AFRAME.registerComponent("vr-menu", {
     scoringText.setAttribute("width", "1.3");
     menu.appendChild(scoringText);
 
-    // Bouton cible pour démarrer
+    // Indicateur de scan en cours
+    this.createScanIndicator(menu, COLORS);
+
+    // Bouton cible pour démarrer (caché initialement)
     this.createPlayButton(menu, COLORS);
   },
 
+  createScanIndicator: function (menu, COLORS) {
+    // Texte de scan
+    this.scanText = document.createElement("a-text");
+    this.scanText.setAttribute("value", "⏳ SCAN DE LA PIECE...");
+    this.scanText.setAttribute("position", "0 -0.58 0.01");
+    this.scanText.setAttribute("align", "center");
+    this.scanText.setAttribute("color", COLORS.gold);
+    this.scanText.setAttribute("width", "1.8");
+    menu.appendChild(this.scanText);
+
+    // Spinner animé
+    this.scanSpinner = document.createElement("a-entity");
+    this.scanSpinner.setAttribute("geometry", {
+      primitive: "ring",
+      radiusInner: 0.06,
+      radiusOuter: 0.1,
+    });
+    this.scanSpinner.setAttribute("material", {
+      color: COLORS.gold,
+      opacity: 0.8,
+      shader: "flat",
+      side: "double",
+    });
+    this.scanSpinner.setAttribute("position", "0 -0.75 0.02");
+    this.scanSpinner.setAttribute("animation", {
+      property: "rotation",
+      from: "0 0 0",
+      to: "0 0 360",
+      dur: 1500,
+      loop: true,
+      easing: "linear",
+    });
+    menu.appendChild(this.scanSpinner);
+  },
+
   createPlayButton: function (menu, COLORS) {
-    // Conteneur du bouton-cible
+    // Conteneur du bouton-cible (caché au départ, attend le scan)
     const buttonContainer = document.createElement("a-entity");
     buttonContainer.setAttribute("position", "0 -0.62 0.05");
+    buttonContainer.setAttribute("visible", false);
     buttonContainer.id = "play-button";
 
     // Cible circulaire rouge
@@ -238,10 +306,8 @@ AFRAME.registerComponent("vr-menu", {
     this.playButton.object3D.getWorldPosition(this.playButtonWorldPos);
     const distance = arrowPosition.distanceTo(this.playButtonWorldPos);
 
-    console.log(`📍 Distance flèche-bouton: ${distance.toFixed(2)}`);
 
     if (distance < 0.5) {
-      console.log("🎯 Bouton touché par une flèche !");
       this.onPlayClick();
       return true;
     }
@@ -250,7 +316,6 @@ AFRAME.registerComponent("vr-menu", {
   },
 
   onPlayClick: function () {
-    console.log("🎮 Bouton JOUER cliqué !");
     
     // Désactiver les lasers des manettes au lancement du jeu
     const bowDrawSystem = document.querySelector("#rig").components["bow-draw-system"];
@@ -280,7 +345,6 @@ AFRAME.registerComponent("vr-menu", {
       }
     }, 350);
 
-    console.log("📋 Menu VR caché");
   },
 
   showMenu: function () {
@@ -290,6 +354,5 @@ AFRAME.registerComponent("vr-menu", {
     this.el.setAttribute("scale", "1 1 1");
     this.el.setAttribute("visible", true);
 
-    console.log("📋 Menu VR affiché");
   },
 });

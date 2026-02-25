@@ -48,14 +48,12 @@ AFRAME.registerComponent('target-behavior', {
     this.bounceTimelock = 300 // Cooldown entre rebonds (ms)
     this.bounceForce = 1.5 // Intensité du rebond
     
-    console.log(`🐦 Oiseau créé: ${this.data.points} points, ${this.data.hp} HP, movable=${this.data.movable}`) // DEBUG
     
     // BACKUP: Si tick() n'est pas appelé par A-Frame, utiliser setInterval
     // Vérifier après 2 secondes si tick a été appelé
     const self = this
     setTimeout(() => {
       if (!self.tickLogged && self.data.movable) {
-        console.log(`⚠️ tick() pas appelé après 2s, activation du backup interval pour ${self.el.id}`)
         self.startBackupInterval()
       }
     }, 2000)
@@ -118,14 +116,11 @@ AFRAME.registerComponent('target-behavior', {
       this.maxSafeRadius = Math.min(roomHalfWidth, roomHalfDepth) - safetyMargin
       this.maxSafeRadius = Math.max(this.maxSafeRadius, 0.5) // Au moins 50cm
       
-      console.log(`🎯 Centre de vol au CENTRE de la pièce: (${this.flightCenter.x.toFixed(2)}, ${this.flightCenter.y.toFixed(2)}, ${this.flightCenter.z.toFixed(2)})`)
-      console.log(`📏 Rayon de vol SÉCURISÉ: ${this.maxSafeRadius.toFixed(2)}m (pièce: ${roomHalfWidth.toFixed(1)}x${roomHalfDepth.toFixed(1)})`)
     }
     
     this.isFlying = true
     this.flightTime = 0
     
-    console.log(`🦅 Oiseau EN VOL! Position: (${worldPos.x.toFixed(2)}, ${worldPos.y.toFixed(2)}, ${worldPos.z.toFixed(2)})`)
   },
 
   /**
@@ -177,7 +172,6 @@ AFRAME.registerComponent('target-behavior', {
     // Stocker aussi les murs pour la détection de proximité
     this.wallsData = wallData
     
-    console.log(`🏠 Limites DE VOL CALCULÉES: X[${this.roomBounds.minX.toFixed(1)}, ${this.roomBounds.maxX.toFixed(1)}] Z[${this.roomBounds.minZ.toFixed(1)}, ${this.roomBounds.maxZ.toFixed(1)}] Y[${this.roomBounds.minY.toFixed(1)}, ${this.roomBounds.maxY.toFixed(1)}]`)
   },
 
   /**
@@ -217,7 +211,6 @@ AFRAME.registerComponent('target-behavior', {
       self.updateFlight(now, deltaTime)
     }, 16) // ~60fps
     
-    console.log(`✅ Backup interval démarré pour ${this.el.id}`)
   },
 
   /**
@@ -228,7 +221,6 @@ AFRAME.registerComponent('target-behavior', {
     if (this.data.movable && !this.isFlying && this.initTime) {
       const elapsed = Date.now() - this.initTime
       if (elapsed >= this.flyStartDelay) {
-      // console.log(`🕐 Délai écoulé (${elapsed}ms), démarrage du vol pour ${this.el.id}...`) // Commenté - trop verbeux
         this.startFlying()
       }
       return
@@ -285,7 +277,6 @@ AFRAME.registerComponent('target-behavior', {
     
     // Debug: log périodique (commenté - trop verbeux)
     // if (!this.lastPosLog2 || this.flightTime - this.lastPosLog2 > 2) {
-    //   console.log(`🦅 Vol: pos=(${newX.toFixed(2)}, ${newY.toFixed(2)}, ${newZ.toFixed(2)})`)
     //   this.lastPosLog2 = this.flightTime
     // }
     
@@ -320,7 +311,6 @@ AFRAME.registerComponent('target-behavior', {
    * Calcule le score de précision basé sur la distance au centre
    */
   onArrowHit: function (arrowEl, impactPoint) {
-    console.log('🔵 onArrowHit appelé!')
     
     // Arrêter le vol quand touché
     this.stopFlying()
@@ -334,7 +324,6 @@ AFRAME.registerComponent('target-behavior', {
       // PROTECTION : Vérifier si cette flèche a déjà touché cette cible
       const arrowId = arrowEl.id || arrowEl.uuid || arrowEl
       if (this.hitByArrows.has(arrowId)) {
-        console.log('⚠️ Cette flèche a déjà touché cette cible, ignoré')
         return
       }
       
@@ -347,7 +336,6 @@ AFRAME.registerComponent('target-behavior', {
       this.hitCount++
       this.currentHp--
       
-      console.log(`🔵 HP après impact: ${this.currentHp} (initial: ${this.data.hp})`)
 
       // Convertir le point d'impact en coordonnées locales de la cible
       const localImpact = this.el.object3D.worldToLocal(impactPoint.clone())
@@ -378,14 +366,12 @@ AFRAME.registerComponent('target-behavior', {
 
       const finalPoints = Math.floor(this.data.points * precisionMultiplier)
 
-      console.log(`💥 Cible touchée! Zone: ${hitZone} | Distance: ${distanceToCenter.toFixed(3)}m | Points: ${finalPoints} | HP restants: ${this.currentHp}`)
 
       // Jouer le son de hit
       try {
         const hitSound = document.getElementById('hit-sound')
         if (hitSound) {
           hitSound.currentTime = 0
-          hitSound.play().catch(e => console.log('Son de hit non disponible:', e))
         }
       } catch (e) {
         console.error('Sound play error:', e)
@@ -397,7 +383,6 @@ AFRAME.registerComponent('target-behavior', {
 
       // Émettre un événement de score au système de jeu
       try {
-        console.log(`🎯 [TARGET] Émission événement target-hit avec ${finalPoints} points`)
         this.el.sceneEl.emit('target-hit', {
           points: finalPoints,
           zone: hitZone,
@@ -406,19 +391,15 @@ AFRAME.registerComponent('target-behavior', {
           distanceToCenter: distanceToCenter,
           surfaceType: this.surfaceType
         })
-        console.log(`✅ [TARGET] Événement target-hit émis avec succès`)
       } catch (e) {
         console.error('❌ [TARGET] Event emission error:', e)
       }
 
       // Détruire la cible si HP = 0
-      console.log(`🔵 Vérification destruction: currentHp=${this.currentHp}, condition=${this.currentHp <= 0}`)
       if (this.currentHp <= 0) {
-        console.log('🔵 Appel de destroy()...')
         this.destroy(finalPoints)
       } else {
         // Si la cible n'est pas détruite, supprimer quand même la flèche après un délai
-        console.log('🔵 Cible non détruite, flèche sera supprimée après 2s')
         setTimeout(() => {
           if (arrowEl && arrowEl.parentNode) {
             arrowEl.parentNode.removeChild(arrowEl)
@@ -646,11 +627,9 @@ AFRAME.registerComponent('target-behavior', {
         }
       }, 1800);
       
-      console.log(`✓ Hit feedback: +${points} points in ${zone} zone`);
       
     } catch (e) {
       console.error('Floating text error:', e);
-      console.log(`✓ Hit feedback: +${points} points in ${zone} zone`);
     }
   },
 
@@ -673,7 +652,6 @@ AFRAME.registerComponent('target-behavior', {
       if (canBounce && this.flightDirection > 0) {
         this.flightDirection *= -1
         this.lastBounceTime = now
-        console.log(`🔄 REBOND MUR GAUCHE - Sera à X=${finalX.toFixed(2)}`)
         bounced = true
       }
     } else if (currentX > this.roomBounds.maxX - this.reboundDistance) {
@@ -682,7 +660,6 @@ AFRAME.registerComponent('target-behavior', {
       if (canBounce && this.flightDirection < 0) {
         this.flightDirection *= -1
         this.lastBounceTime = now
-        console.log(`🔄 REBOND MUR DROIT - Sera à X=${finalX.toFixed(2)}`)
         bounced = true
       }
     }
@@ -694,7 +671,6 @@ AFRAME.registerComponent('target-behavior', {
       if (canBounce) {
         this.flightDirection *= -1
         this.lastBounceTime = now
-        console.log(`🔄 REBOND MUR AVANT - Sera à Z=${finalZ.toFixed(2)}`)
         bounced = true
       }
     } else if (currentZ > this.roomBounds.maxZ - this.reboundDistance) {
@@ -703,7 +679,6 @@ AFRAME.registerComponent('target-behavior', {
       if (canBounce) {
         this.flightDirection *= -1
         this.lastBounceTime = now
-        console.log(`🔄 REBOND MUR ARRIÈRE - Sera à Z=${finalZ.toFixed(2)}`)
         bounced = true
       }
     }
@@ -719,11 +694,9 @@ AFRAME.registerComponent('target-behavior', {
   },
 
   destroy: function (lastPoints) {
-    console.log('🎉 Cible détruite! Suppression en cours...')
     
     // Marquer comme étant en cours de destruction pour éviter les doubles appels
     if (this.isDestroying) {
-      console.log('⚠️ Cible déjà en cours de destruction, ignoré')
       return
     }
     this.isDestroying = true
@@ -749,7 +722,6 @@ AFRAME.registerComponent('target-behavior', {
     
     // Émettre événement de destruction IMMÉDIATEMENT
     try {
-      console.log(`📢 Émission événement target-destroyed pour ${targetEl.id}`)
       sceneEl.emit('target-destroyed', {
         points: this.data.points,
         totalHits: this.hitCount,
@@ -757,7 +729,6 @@ AFRAME.registerComponent('target-behavior', {
         surfaceType: this.surfaceType,
         targetId: targetEl.id
       })
-      console.log(`✅ Événement target-destroyed émis avec succès`)
     } catch (e) {
       console.error('Event emission error:', e)
     }
@@ -780,7 +751,6 @@ AFRAME.registerComponent('target-behavior', {
           // Extraire l'assetId (format: #asset-id)
           const assetId = glbModelAttr.replace('#', '')
           deathAnim = getDeathAnimation(assetId)
-          console.log(`💀 Animation de mort pour ${assetId}: ${deathAnim.rotation}, durée ${deathAnim.duration}ms`)
         }
       }
       
@@ -806,7 +776,6 @@ AFRAME.registerComponent('target-behavior', {
       
       // Écouter la fin de l'animation pour supprimer l'élément
       const onAnimationComplete = () => {
-        console.log('🗑️ Animation terminée, suppression de la cible du DOM')
         targetEl.removeEventListener('animationcomplete__scale', onAnimationComplete)
         if (targetEl.parentNode) {
           targetEl.parentNode.removeChild(targetEl)
@@ -818,7 +787,6 @@ AFRAME.registerComponent('target-behavior', {
       // Sécurité: supprimer après timeout si l'animation ne se termine pas
       const timeout = deathAnim.duration + 100
       setTimeout(() => {
-        console.log('🗑️ Timeout de sécurité, suppression de la cible')
         if (targetEl && targetEl.parentNode) {
           targetEl.parentNode.removeChild(targetEl)
         }
@@ -827,7 +795,6 @@ AFRAME.registerComponent('target-behavior', {
     } catch (e) {
       console.error('Destroy animation error:', e)
       // En cas d'erreur, supprimer immédiatement
-      console.log('🗑️ Suppression forcée de la cible (erreur)')
       if (targetEl && targetEl.parentNode) {
         targetEl.parentNode.removeChild(targetEl)
       }
@@ -962,7 +929,6 @@ AFRAME.registerComponent('target-behavior', {
       }, 16)
       
       this.moveInterval = moveInterval
-      console.log('🎯 Cible mobile activée')
     } catch (e) {
       console.error('Movement error:', e)
     }

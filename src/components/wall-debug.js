@@ -36,10 +36,8 @@ AFRAME.registerComponent("wall-debug", {
     this.xrSession = null;
     this.referenceSpace = null;
     
-    console.log("🔵 Wall Debug System - WebXR Room Capture activé");
     
     this.el.sceneEl.addEventListener("enter-vr", () => {
-      console.log("🔵 Mode VR - Initialisation Room Capture...");
       if (this.data.useRoomCapture) {
         this.initRoomCapture();
       } else {
@@ -48,7 +46,6 @@ AFRAME.registerComponent("wall-debug", {
     });
     
     this.el.sceneEl.addEventListener("exit-vr", () => {
-      console.log("🔵 Sortie VR - Arrêt détection");
       this.isDetecting = false;
     });
   },
@@ -60,7 +57,6 @@ AFRAME.registerComponent("wall-debug", {
     this.xrSession = renderer.xr.getSession();
     
     if (!this.xrSession) {
-      console.warn("🔴 Pas de session XR, fallback vers salle manuelle");
       this.createManualRoom();
       return;
     }
@@ -68,19 +64,15 @@ AFRAME.registerComponent("wall-debug", {
     // Vérifier si plane-detection est supporté
     if (!this.xrSession.enabledFeatures || 
         !this.xrSession.enabledFeatures.includes('plane-detection')) {
-      console.warn("🔴 plane-detection non supporté, fallback vers salle manuelle");
       this.createManualRoom();
       return;
     }
     
-    console.log("✅ WebXR Plane Detection disponible!");
-    console.log("🔵 Début de la détection des plans...");
     
     this.isDetecting = true;
     
     this.xrSession.requestReferenceSpace('local').then((refSpace) => {
       this.referenceSpace = refSpace;
-      console.log("✅ Reference space obtenu");
       this.startDetectionTimeout();
     }).catch((err) => {
       console.error("🔴 Erreur reference space:", err);
@@ -89,14 +81,11 @@ AFRAME.registerComponent("wall-debug", {
   },
 
   startDetectionTimeout: function () {
-    console.log(`🔵 Détection en cours (${this.data.detectionTimeout / 1000}s)...`);
     
     setTimeout(() => {
       if (this.detectedPlanes.size > 0) {
-        console.log(`✅ ${this.detectedPlanes.size} plans détectés!`);
         this.createRoomFromPlanes();
       } else {
-        console.warn("🔴 Aucun plan détecté, fallback vers salle manuelle");
         this.createManualRoom();
       }
       this.isDetecting = false;
@@ -184,14 +173,12 @@ AFRAME.registerComponent("wall-debug", {
       orientation: plane.orientation
     });
     
-    console.log(`🔵 Plan détecté: ${planeType} à (${position.x.toFixed(2)}, ${position.y.toFixed(2)}, ${position.z.toFixed(2)})`);
   },
 
   createRoomFromPlanes: function () {
     if (this.wallsCreated) return;
     this.wallsCreated = true;
     
-    console.log("🔵 Création de la salle à partir des plans détectés...");
     
     let wallCount = 0;
     let floorCount = 0;
@@ -225,7 +212,6 @@ AFRAME.registerComponent("wall-debug", {
       }
     });
     
-    console.log(`✅ Room Capture: ${wallCount} murs, ${floorCount} sols, ${ceilingCount} plafonds`);
     
     // Calculer le centre et la taille de la pièce détectée
     const camera = this.el.sceneEl.camera;
@@ -243,12 +229,10 @@ AFRAME.registerComponent("wall-debug", {
       roomCenterX = (minX + maxX) / 2;
       roomCenterZ = (minZ + maxZ) / 2;
       detectedRoomSize = Math.max(maxX - minX, maxZ - minZ);
-      console.log(`🔵 Taille de pièce détectée: ${detectedRoomSize.toFixed(2)}m, centre: (${roomCenterX.toFixed(2)}, ${roomCenterZ.toFixed(2)})`);
     }
     
     if (maxY > minY && minY < 1 && maxY > 2) {
       detectedWallHeight = maxY - minY;
-      console.log(`🔵 Hauteur de pièce détectée: ${detectedWallHeight.toFixed(2)}m`);
     }
     
     // NE PAS créer de murs manuels si WebXR a détecté des plans
@@ -257,19 +241,15 @@ AFRAME.registerComponent("wall-debug", {
     
     if (wallCount === 0 && totalPlanes === 0) {
       // Aucun plan détecté du tout - fallback complet
-      console.log("🔴 Aucun plan détecté par WebXR, création de salle manuelle...");
       this.createManualWalls();
     } else if (wallCount === 0) {
       // Des plans ont été détectés mais pas de murs - on n'ajoute PAS de murs manuels
-      console.log("🟡 Pas de murs détectés, mais sol/plafond présents - pas de murs manuels ajoutés");
     }
     
     if (floorCount === 0) {
-      console.log("🔵 Aucun sol détecté, création manuelle basée sur plans détectés...");
       this.createFloor(roomCenterX, roomCenterZ, detectedRoomSize);
     }
     if (ceilingCount === 0) {
-      console.log("🔵 Aucun plafond détecté, création manuelle basée sur plans détectés...");
       this.createCeiling(roomCenterX, roomCenterZ, detectedRoomSize, detectedWallHeight);
     }
     
@@ -315,7 +295,6 @@ AFRAME.registerComponent("wall-debug", {
     // Stocker la normale horizontale pour la collision
     const correctedNormal = horizontalNormal.clone();
     
-    console.log(`🔵 MUR ${index + 1}: normale=(${normal.x.toFixed(2)}, ${normal.y.toFixed(2)}, ${normal.z.toFixed(2)}), angleY=${angleY.toFixed(1)}°, hauteur=${wallHeight.toFixed(2)}m`);
     
     const wallWidth = Math.max(width, 1);
     
@@ -341,7 +320,6 @@ AFRAME.registerComponent("wall-debug", {
     wall.addEventListener('loaded', () => {
       if (wall.object3D && wall.getObject3D('mesh')) {
         wall.getObject3D('mesh').updateMatrixWorld(true);
-        console.log(`🎯 MUR ${index + 1} prêt pour collision`);
       }
     });
     
@@ -367,7 +345,6 @@ AFRAME.registerComponent("wall-debug", {
       isWebXR: true
     });
     
-    console.log(`🔵 MUR ${index + 1} (WebXR) créé - normale horizontale: (${horizontalNormal.x.toFixed(2)}, ${horizontalNormal.z.toFixed(2)}), Y=${wallCenterY.toFixed(2)}m`);
   },
 
   createFloorFromPlane: function (planeData) {
@@ -409,7 +386,6 @@ AFRAME.registerComponent("wall-debug", {
     floor.addEventListener('loaded', () => {
       if (floor.object3D && floor.getObject3D('mesh')) {
         floor.getObject3D('mesh').updateMatrixWorld(true);
-        console.log(`🎯 SOL (XR) prêt pour collision`);
       }
     });
     
@@ -436,7 +412,6 @@ AFRAME.registerComponent("wall-debug", {
       isWebXR: true
     });
     
-    console.log(`🔴 SOL (WebXR) créé à Y=${position.y.toFixed(2)}`);
   },
 
   createCeilingFromPlane: function (planeData) {
@@ -478,7 +453,6 @@ AFRAME.registerComponent("wall-debug", {
     ceiling.addEventListener('loaded', () => {
       if (ceiling.object3D && ceiling.getObject3D('mesh')) {
         ceiling.getObject3D('mesh').updateMatrixWorld(true);
-        console.log(`🎯 PLAFOND (XR) prêt pour collision`);
       }
     });
     
@@ -505,15 +479,12 @@ AFRAME.registerComponent("wall-debug", {
       isWebXR: true
     });
     
-    console.log(`🟢 PLAFOND (WebXR) créé à Y=${position.y.toFixed(2)}`);
   },
 
   createManualRoom: function () {
     if (this.wallsCreated) return;
     this.wallsCreated = true;
     
-    console.log("🔵 Création du sol/plafond manuel (pas de Room Capture disponible)...");
-    console.log("⚠️ Aucun mur manuel créé - utilisez Room Setup sur votre casque pour détecter les vrais murs");
     
     // On ne crée PAS de murs manuels - seulement sol et plafond
     // Les murs doivent venir du Room Capture WebXR
@@ -533,8 +504,6 @@ AFRAME.registerComponent("wall-debug", {
 
   // Cette fonction n'est plus utilisée - les murs viennent uniquement de WebXR
   createManualWalls: function () {
-    console.log("⚠️ createManualWalls() désactivé - utilisez Room Setup sur votre casque");
-    console.log("📱 Sur Meta Quest: Paramètres > Espace physique > Configuration de l'espace");
     // Ne crée rien - les murs doivent venir de WebXR Room Capture
   },
 
@@ -571,7 +540,6 @@ AFRAME.registerComponent("wall-debug", {
     floor.addEventListener('loaded', () => {
       if (floor.object3D && floor.getObject3D('mesh')) {
         floor.getObject3D('mesh').updateMatrixWorld(true);
-        console.log(`🎯 SOL prêt pour collision`);
       }
     });
     
@@ -597,7 +565,6 @@ AFRAME.registerComponent("wall-debug", {
       isFloor: true
     });
     
-    console.log(`🔴 SOL créé à (${centerX.toFixed(1)}, ${this.data.floorY}, ${centerZ.toFixed(1)})`);
   },
 
   createCeiling: function(centerX, centerZ, ceilingSize, wallHeight) {
@@ -635,7 +602,6 @@ AFRAME.registerComponent("wall-debug", {
     ceiling.addEventListener('loaded', () => {
       if (ceiling.object3D && ceiling.getObject3D('mesh')) {
         ceiling.getObject3D('mesh').updateMatrixWorld(true);
-        console.log(`🎯 PLAFOND prêt pour collision`);
       }
     });
     
@@ -661,7 +627,6 @@ AFRAME.registerComponent("wall-debug", {
       isCeiling: true
     });
     
-    console.log(`🟢 PLAFOND créé à (${centerX.toFixed(1)}, ${ceilingY}, ${centerZ.toFixed(1)})`);
   },
 
   emitReadyEvents: function () {
@@ -676,7 +641,6 @@ AFRAME.registerComponent("wall-debug", {
       manual: this.wallData.length - webxrCount
     });
     
-    console.log(`✅ ${this.wallData.length} surfaces prêtes (${webxrCount} WebXR, ${this.wallData.length - webxrCount} manuelles)`);
   },
 
   getRandomSpawnPoint: function () {

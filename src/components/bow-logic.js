@@ -35,7 +35,6 @@ AFRAME.registerComponent("bow-logic", {
     this.onMouseClick = this.shootArrowMouse.bind(this);
     document.addEventListener("click", this.onMouseClick);
 
-    console.log("🏹 Arc initialisé avec guide de visée");
   },
 
   update: function () {

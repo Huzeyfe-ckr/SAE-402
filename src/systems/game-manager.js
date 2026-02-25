@@ -43,7 +43,6 @@ AFRAME.registerSystem("game-manager", {
 
     // Écouter quand les murs sont prêts (wall-debug)
     this.el.addEventListener("walls-ready", (evt) => {
-      console.log("🎮 Murs prêts pour le spawn des cibles!");
       const wallDebugEl = this.el.querySelector("[wall-debug]");
       if (wallDebugEl && wallDebugEl.components["wall-debug"]) {
         this.wallDebug = wallDebugEl.components["wall-debug"];
@@ -89,7 +88,6 @@ AFRAME.registerSystem("game-manager", {
       this.startGame();
     });
 
-    console.log("🎮 Game Manager initialisé");
   },
 
   startGame: function () {
@@ -107,7 +105,6 @@ AFRAME.registerSystem("game-manager", {
       bgSound.volume = 0.3;
       bgSound
         .play()
-        .catch((e) => console.log("Son de fond non disponible:", e));
     }
 
     this.startTargetSpawning();
@@ -120,7 +117,6 @@ AFRAME.registerSystem("game-manager", {
       this.gameTime--;
       this.updateTimerDisplay();
 
-      // console.log(`⏱️ Temps restant: ${this.gameTime}s`); // Commenté - trop verbeux
 
       if (this.gameTime <= 0) {
         this.endGame();
@@ -142,7 +138,6 @@ AFRAME.registerSystem("game-manager", {
   },
 
   endGame: function () {
-    console.log("🏁 Fin du jeu!");
 
     // Arrêter le jeu
     this.stopGame();
@@ -321,7 +316,6 @@ AFRAME.registerSystem("game-manager", {
     if (this.wallDebug && this.wallDebug.getRandomSpawnPoint) {
       spawnData = this.wallDebug.getRandomSpawnPoint();
       if (spawnData) {
-        console.log(`🎯 Spawn sur ${spawnData.wallName}`);
       }
     }
 
@@ -429,17 +423,12 @@ AFRAME.registerSystem("game-manager", {
       flyHeight: 0.3 + Math.random() * 0.4 // Variation hauteur entre 0.3 et 0.7
     });
 
-    console.log(`🦅 ${targetType.name} spawné (${points}pts, ${hp}HP, flySpeed=${flySpeed.toFixed(2)})`);
 
     if (this.useAnchors && this.anchorManager) {
       setTimeout(() => {
         this.anchorTarget(target, pos, spawnData.rotation);
       }, 100);
     }
-
-    console.log(
-      `🎯 Nouvelle cible spawned: ${targetId} (${points}pts, ${hp}HP, ${spawnData.surfaceType})`,
-    );
   },
 
   onTargetHit: function (evt) {
@@ -470,7 +459,6 @@ AFRAME.registerSystem("game-manager", {
 
   onArrowShot: function (evt) {
     this.totalArrowsShot++;
-    console.log(`🏹 Flèches tirées: ${this.totalArrowsShot}`);
   },
 
   createScoreDisplay: function () {
@@ -593,7 +581,6 @@ AFRAME.registerSystem("game-manager", {
         this.anchorManager.attachToAnchor(target, anchorId);
       }
     } catch (error) {
-      console.log(`⚠️ Impossible d'ancrer la cible ${target.id}:`, error);
     }
   },
 
@@ -603,7 +590,6 @@ AFRAME.registerSystem("game-manager", {
       clearInterval(this.spawnTimer);
       this.spawnTimer = null;
     }
-    console.log("🎮 Jeu arrêté");
   },
 
   tick: function (time, deltaTime) {

@@ -28,17 +28,13 @@ AFRAME.registerSystem('combo-system', {
     // NOUVEAU: Écouter les destruction de cibles pour compter les kills
     this.el.addEventListener('target-destroyed', this.onTargetDestroyed.bind(this))
     
-    console.log('🎯 Système de combo initialisé')
-    console.log('🎯 Écoute des événements target-destroyed pour les sons de kills')
     
     // Vérifier que tous les audios existent
     const audioIds = ['combo-double-sound', 'combo-triple-sound', 'combo-quad-sound', 'combo-penta-sound']
     audioIds.forEach(id => {
       const el = document.getElementById(id)
       if (el) {
-        console.log(`✅ Audio trouvé: ${id} - ${el.src}`)
       } else {
-        console.log(`🔴 Audio MANQUANT: ${id}`)
       }
     })
   },
@@ -46,7 +42,6 @@ AFRAME.registerSystem('combo-system', {
   onTargetDestroyed: function (evt) {
     // Incrémenter le compteur total de kills
     this.totalKills++
-    console.log(`☠️ Kill #${this.totalKills} détecté par combo-system!`)
     
     // Vérifier si on a atteint un jalon et déclencher le son correspondant
     this.playKillMilestoneSound(this.totalKills)
@@ -57,60 +52,45 @@ AFRAME.registerSystem('combo-system', {
     let soundId = null
     
     if (killCount === 1) {
-      console.log(`🎯 Kill #1 - Pas de son pour le premier kill`)
       soundId = null  // Pas de son pour le 1er kill
     } else if (killCount === 2) {
-      console.log(`🎵 Kill #2 - Tentative de jouer: combo-double-sound`)
       soundId = 'combo-double-sound'  // "Doublé!"
     } else if (killCount === 3) {
-      console.log(`🎵 Kill #3 - Tentative de jouer: combo-triple-sound`)
       soundId = 'combo-triple-sound'  // "Triplé!"
     } else if (killCount === 4) {
-      console.log(`🎵 Kill #4 - Tentative de jouer: combo-quad-sound`)
       soundId = 'combo-quad-sound'    // "Quadruplé!"
     } else if (killCount >= 5) {
-      console.log(`🎵 Kill #${killCount} - Tentative de jouer: combo-penta-sound`)
       soundId = 'combo-penta-sound'   // "5+ kills!"
     }
     
     // Jouer le son s'il existe et n'a pas déjà été joué
     if (soundId && !this.milestonesReached.has(killCount)) {
       this.milestonesReached.add(killCount)
-      console.log(`🔊 [Kill #${killCount}] Cherche élément audio: ${soundId}`)
       
       try {
         const soundEl = document.getElementById(soundId)
         if (soundEl) {
-          console.log(`✅ [Kill #${killCount}] Élément trouvé - Volume: ${soundEl.volume}, SrcAttr: ${soundEl.src}`)
           soundEl.currentTime = 0
           soundEl.volume = 0.8
           
           // Vérifier que l'audio est prêt
           if (soundEl.readyState < 2) {
-            console.log(`⚠️ [Kill #${killCount}] Audio pas prêt (readyState=${soundEl.readyState}), attend...`)
             soundEl.addEventListener('canplay', () => {
-              console.log(`✅ [Kill #${killCount}] Audio prêt, play()`)
               soundEl.play().catch(e => {
-                console.log(`🔴 [Kill #${killCount}] Erreur play(): ${e}`)
               })
             }, { once: true })
           } else {
-            console.log(`✅ [Kill #${killCount}] Audio prêt (readyState=${soundEl.readyState}), play()`)
             soundEl.play().catch(e => {
-              console.log(`🔴 [Kill #${killCount}] Erreur play(): ${e}`)
             })
           }
         } else {
-          console.log(`🔴 [Kill #${killCount}] Élément audio INTROUVABLE: ${soundId}`)
         }
       } catch (e) {
         console.error(`[Kill #${killCount}] Kill sound error:`, e)
       }
     } else {
       if (!soundId) {
-        console.log(`🎯 [Kill #${killCount}] Pas de son assigné`)
       } else {
-        console.log(`⚠️  [Kill #${killCount}] Son ${soundId} déjà joué (dans milestonesReached)`)
       }
     }
   },
@@ -147,7 +127,6 @@ AFRAME.registerSystem('combo-system', {
     this.el.setAttribute('state', 'combo', this.combo)
     this.el.setAttribute('state', 'multiplier', this.multiplier)
 
-    console.log(`🔥 Combo: x${this.combo} | Multiplicateur: ${this.multiplier.toFixed(1)}x`)
 
     // Afficher le feedback de combo
     if (this.combo >= 3) {
@@ -320,7 +299,6 @@ AFRAME.registerSystem('combo-system', {
       }
     }, 2000)
     
-    console.log(`✨ Animation combo: ${comboLevel} (x${this.combo})`)
   },
   
   createComboParticles: function (container, count, baseColor, level) {
@@ -432,7 +410,6 @@ AFRAME.registerSystem('combo-system', {
           soundEl.currentTime = 0
           soundEl.volume = 0.8
           soundEl.play().catch(e => {
-            console.log(`🔊 Son combo non disponible: ${soundId}`)
           })
         }
       }
@@ -472,7 +449,6 @@ AFRAME.registerSystem('combo-system', {
         this.comboActive = false
         
         if (this.combo > 1) {
-          console.log(`❌ Combo perdu: x${this.combo}`)
         }
         
         this.combo = 0

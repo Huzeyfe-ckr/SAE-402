@@ -231,21 +231,17 @@
         <a-camera score-hud></a-camera>
 
         <a-entity id="leftHand" 
-          hand-controls="hand: left" 
           meta-touch-controls="hand: left"
           bow-string="rotation: 0 90 90; topAnchor: 0.12 0.59 0; bottomAnchor: 0.12 -0.59 0; stringWidth: 0.001"
-          raycaster="objects: .clickable; far: 10"
-          laser-controls>
+          raycaster="objects: .clickable; far: 10">
           <a-entity gltf-model="#bow-model" scale="0.25 0.25 0.25" rotation="0  90 90" position="0 0 0"></a-entity>
         </a-entity>
         
 
         <a-entity
           id="rightHand"
-          hand-controls="hand: right"
           meta-touch-controls="hand: right"
-          raycaster="objects: .clickable; far: 10"
-          laser-controls>
+          raycaster="objects: .clickable; far: 10">
         </a-entity>
       </a-entity>
 

@@ -39,7 +39,6 @@ AFRAME.registerComponent("scene-mesh-handler", {
     if ("xr" in navigator) {
       this.checkWebXRSupport();
     } else {
-      console.log("⚠️ WebXR non disponible sur ce navigateur");
       this.createMockSceneMesh();
     }
   },
@@ -56,15 +55,9 @@ AFRAME.registerComponent("scene-mesh-handler", {
       this.isWebXRSupported = isARSupported || isVRSupported;
 
       if (this.isWebXRSupported) {
-        console.log(
-          `✅ WebXR supporté - AR: ${isARSupported}, VR: ${isVRSupported}`,
-        );
         this.setupSceneMeshTracking();
-      } else {
-        console.log("⚠️ WebXR non supporté sur cet appareil");
       }
     } catch (error) {
-      console.log("⚠️ Erreur de vérification WebXR:", error);
     }
   },
 
@@ -72,12 +65,10 @@ AFRAME.registerComponent("scene-mesh-handler", {
     const sceneEl = this.el.sceneEl;
 
     sceneEl.addEventListener("enter-vr", () => {
-      console.log("🥽 Entrée en mode VR - Activation du Scene Mesh");
       this.startSceneMeshDetection();
     });
 
     sceneEl.addEventListener("exit-vr", () => {
-      console.log("👋 Sortie du mode VR - Désactivation du Scene Mesh");
       this.stopSceneMeshDetection();
     });
   },
@@ -88,12 +79,10 @@ AFRAME.registerComponent("scene-mesh-handler", {
     this.xrRefSpace = renderer.xr.getReferenceSpace();
 
     if (!this.xrSession) {
-      console.warn("⚠️ Session XR non disponible");
       return;
     }
 
     this.el.sceneEl.emit("scene-mesh-handler-ready", {});
-console.log("🎯 Démarrage détection des planes du Quest");
     this.el.sceneEl.emit("scene-mesh-handler-ready", {});
 
     // Activer la détection des planes WebXR
@@ -110,26 +99,19 @@ async initializeHitTest() {
     this.hitTestSource = await this.xrSession.requestHitTestSource({
       space: viewerSpace,
     });
-    console.log("🎯 Hit-test initialisé (viewer space)");
   } catch (error) {
-    console.warn("⚠️ Hit-test viewer impossible, fallback local", error);
     try {
       const localSpace = await this.xrSession.requestReferenceSpace("local");
       this.hitTestSource = await this.xrSession.requestHitTestSource({
         space: localSpace,
       });
-      console.log("🎯 Hit-test initialisé (local space)");
     } catch (err) {
-      console.warn("⚠️ Hit-test indisponible, fallback mock", err);
-      console.warn("⚠️ Hit-test indisponible - Surfaces mockées déjà créées");
       this.usesMockSurfaces = true;
     }
   }
 },
 
   trackXRPlanes: function() {
-    console.log("🔍 Activation du tracking des planes WebXR du Quest");
-    console.log("📊 Nombre de planes déjà détectés:", this.detectedPlanes.size);
     
     // Cette fonction sera appelée à chaque frame dans tick()
     this.planesEnabled = true;
@@ -138,7 +120,6 @@ async initializeHitTest() {
 
   createMockSceneMesh: function () {
     // Surfaces mockées désactivées - pas d'affichage visuel
-    console.log("⚠️ Surfaces mockées désactivées");
     this.emitSceneMeshUpdate();
   },
 
@@ -207,7 +188,6 @@ async initializeHitTest() {
         isCeiling: normal.y < -0.7,
       });
     } catch (error) {
-      console.warn("⚠️ Hit-test error:", error.message);
     }
   },
 
@@ -273,7 +253,6 @@ async initializeHitTest() {
       this.sceneMeshes.push(surfaceEntity);
       this.spawnSurfaces.push(surfaceEntity);
       
-      console.log(`🎯 ${label} détecté à (${position.x.toFixed(2)}, ${position.y.toFixed(2)}, ${position.z.toFixed(2)})`);
     } else {
       // Mettre à jour le timestamp de la surface existante
       const surface = this.visualSurfaces.get(key);
@@ -315,7 +294,6 @@ async initializeHitTest() {
   processPlanes: function(planes, frame) {
     // DÉSACTIVÉ: Ne pas créer de surfaces visuelles (utiliser wall-debug à la place)
     if (!this.data.createVisualSurfaces) {
-      console.log("🔇 Création visuelle des surfaces WebXR désactivée - utilisez wall-debug");
       return;
     }
     
@@ -401,7 +379,6 @@ async initializeHitTest() {
           color = OTHER_COLORS[label] || "#87CEEB";
         }
         
-        console.log(`🎨 Surface: ${label} - Couleur: ${color} - Hauteur: ${surfaceHeight.toFixed(2)}m - Normal Y: ${normal.y.toFixed(2)} - isVertical: ${isVertical}`);
 
         // Créer l'entité visuelle
         const planeEntity = document.createElement("a-plane");
@@ -467,7 +444,6 @@ async initializeHitTest() {
           isRealSurface: true
         });
 
-        console.log(`✅ ${label} détecté - Taille: ${width.toFixed(2)}m x ${height.toFixed(2)}m`);
       }
     }
     
@@ -498,7 +474,6 @@ async initializeHitTest() {
         planeData.entity.setAttribute("material", "opacity", this.surfaceOpacity);
       }
     }
-    console.log(`📊 Opacité des surfaces mise à jour: ${this.surfaceOpacity}`);
   },
 
   createOrUpdateVisualSurface: function(position, quaternion, normal) {
@@ -544,7 +519,6 @@ async initializeHitTest() {
       this.sceneMeshes.push(surfaceEntity);
       this.spawnSurfaces.push(surfaceEntity);
       
-      console.log(`🔵 Surface détectée et visualisée: ${label} à (${position.x.toFixed(2)}, ${position.y.toFixed(2)}, ${position.z.toFixed(2)})`);
     } else {
       // Mettre à jour le timestamp de la surface existante
       const surface = this.visualSurfaces.get(key);

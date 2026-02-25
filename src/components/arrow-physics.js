@@ -34,14 +34,6 @@ AFRAME.registerComponent("arrow-physics", {
     // Initialiser la vélocité avec la vitesse et la direction
     this.velocity.copy(initialDirection).multiplyScalar(this.data.speed);
 
-    // Log pour debug
-    console.log("➡️ Flèche créée avec vélocité initiale:", {
-      x: this.velocity.x.toFixed(2),
-      y: this.velocity.y.toFixed(2),
-      z: this.velocity.z.toFixed(2),
-      vitesse: this.data.speed.toFixed(1),
-    });
-
     // Raycaster pour détecter les collisions
     this.raycaster = new THREE.Raycaster();
 
@@ -73,7 +65,6 @@ AFRAME.registerComponent("arrow-physics", {
     const sceneSurfaces = scene.querySelectorAll(".scene-mesh, .wall-debug-surface, .collidable, .arrow-collidable, a-plane[geometry], [id^='webxr-wall'], [id^='debug-wall'], [id^='debug-floor'], [id^='debug-ceiling']");
     
     if (this.collisionObjects.length < 10) { // Éviter le spam de logs
-      console.log(`🔵 DEBUG: Nombre de surfaces trouvées pour collision: ${sceneSurfaces.length}`);
     }
     
     sceneSurfaces.forEach((mesh, index) => {
@@ -102,7 +93,6 @@ AFRAME.registerComponent("arrow-physics", {
         });
         
         const pos = mesh.getAttribute("position");
-        console.log(`🔵 Surface #${index} ajoutée pour collision: ${mesh.id || 'anonymous'} à (${pos?.x?.toFixed(2)}, ${pos?.y?.toFixed(2)}, ${pos?.z?.toFixed(2)})`);
       }
     });
     
@@ -208,7 +198,6 @@ tick: function (time, deltaTime) {
   const startMenuEl = this.el.sceneEl.querySelector("[vr-menu]");
   if (startMenuEl && startMenuEl.components["vr-menu"]) {
     if (startMenuEl.components["vr-menu"].checkArrowHit(worldPos)) {
-      console.log("🎯 Menu démarrage touché !");
       this.hasCollided = true;
       this.removeArrow();
       return;
@@ -219,7 +208,16 @@ tick: function (time, deltaTime) {
   const endMenuEl = this.el.sceneEl.querySelector("[end-menu]");
   if (endMenuEl && endMenuEl.components["end-menu"]) {
     if (endMenuEl.components["end-menu"].checkArrowHit(worldPos)) {
-      console.log("🔄 Menu fin touché !");
+      this.hasCollided = true;
+      this.removeArrow();
+      return;
+    }
+  }
+
+  // Vérifier le panneau de scan de pièce
+  const roomScannerEl = this.el.sceneEl.querySelector("[room-scanner]");
+  if (roomScannerEl && roomScannerEl.components["room-scanner"]) {
+    if (roomScannerEl.components["room-scanner"].checkArrowHit(worldPos)) {
       this.hasCollided = true;
       this.removeArrow();
       return;
@@ -253,7 +251,6 @@ tick: function (time, deltaTime) {
 
   if (intersects.length > 0 && intersects[0].distance <= rayDistance * 1.5) {
     // Collision détectée via raycaster !
-    console.log(`🔵 Raycaster hit: ${intersects[0].object.name || 'mesh'} à distance ${intersects[0].distance.toFixed(3)}`);
     this.handleCollision(intersects[0]);
   } else {
     // FALLBACK: Vérification par distance pour les cibles (plus fiable avec les modèles GLTF)
@@ -269,7 +266,6 @@ tick: function (time, deltaTime) {
         const hitRadius = 0.5; // Rayon de collision de la cible
         
         if (distance < hitRadius) {
-          console.log(`🎯 COLLISION PAR DISTANCE! Distance: ${distance.toFixed(3)}m`);
           // Créer un objet intersection simulé
           const fakeIntersection = {
             point: arrowWorldPos.clone(),
@@ -320,13 +316,11 @@ tick: function (time, deltaTime) {
         
         // Debug pour comprendre les valeurs
         if (absPerpDistance < 1.0 && localX < wallWidth && relativeY < wallHeight) {
-          console.log(`🔍 Mur ${wall.name}: perpDist=${absPerpDistance.toFixed(3)}, localX=${localX.toFixed(2)}, relY=${relativeY.toFixed(2)}`);
         }
         
         // Collision si proche du plan ET dans les limites du mur
         // Distance de 0.5m pour être sûr de détecter
         if (absPerpDistance < 0.5 && localX < wallWidth / 2 && relativeY < wallHeight / 2) {
-          console.log(`🧱 COLLISION MUR WebXR! ${wall.name} - perpDistance: ${absPerpDistance.toFixed(3)}m`);
           
           // Point d'impact sur le plan du mur
           const impactPoint = arrowWorldPos.clone();
@@ -369,7 +363,6 @@ tick: function (time, deltaTime) {
         if (entity.hasAttribute && entity.hasAttribute('target-behavior')) {
           hitEntity = entity;
           hitType = "target";
-          console.log('🎯 Cible trouvée via hiérarchie THREE.js:', entity.id || 'anonymous');
           break;
         }
         // Sinon vérifier si c'est un environnement
@@ -392,7 +385,6 @@ tick: function (time, deltaTime) {
                 (collisionObj.object.children && this.isDescendant(checkObj, collisionObj.object))) {
               hitEntity = collisionObj.entity;
               hitType = "target";
-              console.log('🎯 Cible trouvée via fallback:', hitEntity.id || 'anonymous');
               break;
             }
             checkObj = checkObj.parent;
@@ -405,11 +397,6 @@ tick: function (time, deltaTime) {
     // Log détaillé de la collision
     const hitId = hitEntity?.id || "unknown";
     const hitClass = hitEntity?.getAttribute?.("class") || "no-class";
-    console.log(`💥 COLLISION DÉTECTÉE!`);
-    console.log(`   Type: ${hitType}`);
-    console.log(`   Entité: ${hitId}`);
-    console.log(`   Classe: ${hitClass}`);
-    console.log(`   Point d'impact: (${impactPoint.x.toFixed(2)}, ${impactPoint.y.toFixed(2)}, ${impactPoint.z.toFixed(2)})`);
 
     // Planter la flèche à la position d'impact (pour tous les types)
     this.el.object3D.position.copy(impactPoint);
@@ -419,25 +406,21 @@ tick: function (time, deltaTime) {
       // Reculer la flèche dans le sens opposé à la normale (pour qu'elle pénètre dans le mur)
       const offset = intersection.face.normal.clone().multiplyScalar(-0.15);
       this.el.object3D.position.add(offset);
-      console.log(`🔵 Flèche plantée avec normal offset`);
     } else {
       // Fallback: utiliser la direction de la vélocité pour planter la flèche
       const velocityDir = this.velocity.clone().normalize();
       const offset = velocityDir.multiplyScalar(0.1);
       this.el.object3D.position.add(offset);
-      console.log(`🔵 Flèche plantée avec velocity offset`);
     }
 
     // Si c'est une cible, appeler son composant
     if (hitType === "target" && hitEntity && hitEntity.components && hitEntity.components["target-behavior"]) {
-      console.log('🎯 Appel de onArrowHit sur la cible...');
       hitEntity.components["target-behavior"].onArrowHit(this.el, impactPoint);
       
       // La flèche sera supprimée par le composant target-behavior lors de la destruction
       // Ne pas appeler animateRemoval() ici pour éviter la double suppression
     } else {
       // Surface environnement (mur, sol, plafond)
-      console.log('🏹 Flèche plantée dans:', hitId || 'surface');
       
       // Déterminer le temps de disparition selon le type de surface
       let removeDelay = 5000; // 5 secondes par défaut pour les murs
@@ -448,7 +431,6 @@ tick: function (time, deltaTime) {
         removeDelay = 3000; // 3 secondes pour le plafond
       }
       
-      console.log(`⏰ Flèche sera retirée dans ${removeDelay/1000}s`);
       
       // Retirer la flèche après le délai
       setTimeout(() => {

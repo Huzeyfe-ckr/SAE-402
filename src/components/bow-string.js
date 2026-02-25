@@ -36,7 +36,6 @@ AFRAME.registerComponent('bow-string', {
   },
 
   debugLog: function (message) {
-    console.log(message);
     const debugDiv = document.getElementById('debug-errors');
     if (debugDiv) {
       const errorList = document.getElementById('error-list');

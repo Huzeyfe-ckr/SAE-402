@@ -24,7 +24,6 @@ AFRAME.registerComponent("bow-draw-system", {
     // Indicateur visuel de la corde tendue
     this.createDrawIndicator();
 
-    console.log("🏹 Bow Draw System initialisé");
   },
 
   play: function () {
@@ -33,7 +32,6 @@ AFRAME.registerComponent("bow-draw-system", {
     this.rightHand = document.querySelector("#rightHand");
 
     if (!this.leftHand || !this.rightHand) {
-      console.warn("⚠️ Mains non trouvées, retry...");
       setTimeout(() => this.play(), 500);
       return;
     }
@@ -47,7 +45,6 @@ AFRAME.registerComponent("bow-draw-system", {
     this.rightHand.addEventListener("abuttondown", this.onTriggerDown);
     this.rightHand.addEventListener("abuttonup", this.onTriggerUp);
 
-    console.log("✅ Events attachés aux mains");
   },
 
   createDrawIndicator: function () {
@@ -106,7 +103,6 @@ AFRAME.registerComponent("bow-draw-system", {
       this.isDrawing = true;
       this.drawLine.visible = true; // Afficher la ligne de puissance
       this.handIndicator.visible = true; // Afficher l'indicateur de main
-      console.log("🎯 Corde accrochée !");
 
       // Son de grincement de la corde
       const creakSound = document.getElementById("bow-creak-sound");
@@ -114,10 +110,6 @@ AFRAME.registerComponent("bow-draw-system", {
         creakSound.currentTime = 0;
         creakSound.play().catch((e) => {});
       }
-    } else {
-      console.log(
-        `❌ Trop loin pour accrocher (${distance.toFixed(2)}m > ${this.data.snapDistance}m)`,
-      );
     }
   },
 
@@ -199,7 +191,6 @@ AFRAME.registerComponent("bow-draw-system", {
     const now = Date.now();
     if (now - this.lastShotTime < this.data.shotCooldown) {
       const remaining = ((this.data.shotCooldown - (now - this.lastShotTime)) / 1000).toFixed(1);
-      console.log(`⏳ Cooldown actif ! Attendre ${remaining}s`);
       
       // Son d'erreur
       const errorSound = document.getElementById("error-sound");
@@ -213,7 +204,6 @@ AFRAME.registerComponent("bow-draw-system", {
 
     // ANTI-EXPLOIT: Vérifier la distance minimale (25cm)
     if (this.drawDistance < this.data.minDrawDistance) {
-      console.log(`❌ TIR INVALIDE ! Distance: ${(this.drawDistance * 100).toFixed(0)}cm < Minimum: ${(this.data.minDrawDistance * 100).toFixed(0)}cm`);
       
       // Feedback visuel: flash rouge
       if (this.handIndicator) {
@@ -269,18 +259,6 @@ AFRAME.registerComponent("bow-draw-system", {
     // Créer le quaternion de rotation pour la flèche
     const aimQuaternion = new THREE.Quaternion();
     aimQuaternion.setFromUnitVectors(new THREE.Vector3(0, 0, -1), shootDirection);
-    
-    // Log la direction finale
-    const aimDirection = shootDirection.clone();
-
-    console.log(
-      `🏹 TIRE ! Distance: ${this.drawDistance.toFixed(2)}m, Puissance: ${(drawRatio * 100).toFixed(0)}%, Vitesse: ${arrowSpeed.toFixed(1)}`,
-    );
-    console.log("🎯 Direction visée:", {
-      x: aimDirection.x.toFixed(2),
-      y: aimDirection.y.toFixed(2),
-      z: aimDirection.z.toFixed(2),
-    });
 
     // Son de tir de l'arc
     const shootSound = document.getElementById("shoot-sound");
@@ -329,7 +307,6 @@ AFRAME.registerComponent("bow-draw-system", {
    * Appelé quand "Lancer la game" est pressé
    */
   disableLasers: function () {
-    console.log("🔫 Désactivation des lasers des manettes");
     
     if (this.leftHand) {
       this.leftHand.removeAttribute('laser-controls');

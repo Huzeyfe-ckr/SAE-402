@@ -19,14 +19,12 @@ AFRAME.registerComponent("webxr-anchor-manager", {
     this.el.sceneEl.addEventListener("enter-vr", () => this.onEnterVR());
     this.el.sceneEl.addEventListener("exit-vr", () => this.onExitVR());
 
-    console.log("⚓ Anchor Manager initialisé");
   },
 
   onEnterVR: function () {
     const sceneMeshEntity = this.el.sceneEl.querySelector("[scene-mesh-handler]");
     if (sceneMeshEntity && sceneMeshEntity.components["scene-mesh-handler"]) {
       this.sceneMeshHandler = sceneMeshEntity.components["scene-mesh-handler"];
-      console.log("✅ Anchor Manager connecté au Scene Mesh Handler");
     }
 
     if (this.data.autoCleanup) {
@@ -42,7 +40,6 @@ AFRAME.registerComponent("webxr-anchor-manager", {
       clearInterval(this.cleanupTimer);
       this.cleanupTimer = null;
     }
-    console.log("👋 Anchor Manager nettoyé");
   },
 
   createAnchor: async function (pose) {

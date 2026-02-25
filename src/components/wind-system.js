@@ -47,7 +47,6 @@ AFRAME.registerComponent("wind", {
       this.startWindCycle();
     }
 
-    console.log("🌪️ Component Wind initialisé (cycle intermittent)");
   },
 
   startWindCycle: function () {
@@ -63,7 +62,6 @@ AFRAME.registerComponent("wind", {
         }
         const windSound = document.getElementById("wind-sound");
         if (windSound) this.rampWindVolume(windSound, 0.08, this.data.rampDuration);
-        console.log("🍃 Période de calme...");
         this.updateWindVisuals();
         this.windCycleTimeout = setTimeout(runCycle, this.data.calmDuration);
       } else {
@@ -79,12 +77,10 @@ AFRAME.registerComponent("wind", {
             windSound.play().catch(() => {});
           }
         }
-        console.log("🌬️ Le vent se lève!");
         this.windCycleTimeout = setTimeout(runCycle, this.data.windDuration);
       }
     };
 
-    console.log("🍃 Démarrage: période de calme initiale...");
     this.updateWindVisuals();
     this.windCycleTimeout = setTimeout(runCycle, this.data.calmDuration);
   },
@@ -113,7 +109,6 @@ AFRAME.registerComponent("wind", {
       this.windDirection.setFromVector3(dir);
     }
 
-    console.log(`💨 Nouveau vent: Intensité: ${this.windIntensity.toFixed(2)}m/s`);
 
     const scene = this.el;
     if (scene) {
@@ -198,7 +193,6 @@ AFRAME.registerComponent("wind", {
     });
 
     this.visualsCreated = true;
-    console.log("✨ Nouvel indicateur de vent créé!");
   },
 
   startWindSound: function () {
@@ -209,16 +203,13 @@ AFRAME.registerComponent("wind", {
       const playPromise = windSound.play();
       if (playPromise !== undefined) {
         playPromise.then(() => {
-          console.log("🔊 Son du vent démarré!");
         }).catch(e => {
-          console.log("🔊 Son du vent: en attente d'interaction utilisateur...");
           document.addEventListener('click', () => {
             windSound.play().catch(() => {});
           }, { once: true });
         });
       }
     } else {
-      console.log("⚠️ wind-sound non trouvé ou wind désactivé");
     }
   },
 

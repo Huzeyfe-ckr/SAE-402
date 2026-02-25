@@ -39,7 +39,6 @@ AFRAME.registerComponent("surface-detector", {
       });
     }
 
-    console.log("🔍 Surface Detector initialisé");
   },
 
   initializeSurfaceDetection: function () {

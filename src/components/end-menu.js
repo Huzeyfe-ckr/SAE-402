@@ -18,7 +18,6 @@ AFRAME.registerComponent("end-menu", {
     // Créer le panneau de fin
     this.createEndPanel();
 
-    console.log("🏁 Menu de fin initialisé - Score:", this.data.score);
   },
 
   createEndPanel: function () {
@@ -236,7 +235,6 @@ AFRAME.registerComponent("end-menu", {
     
     // Ajouter un écouteur d'événements pour le clic VR
     buttonContainer.addEventListener("click", () => {
-      console.log("🖱️ Bouton cliqué !");
       this.onReplayClick();
     });
     
@@ -258,7 +256,6 @@ AFRAME.registerComponent("end-menu", {
     const distance = arrowPosition.distanceTo(this.replayButtonWorldPos);
 
     if (distance < 0.5) {
-      console.log("🔄 Bouton REJOUER touché !");
       this.onReplayClick();
       return true;
     }
@@ -267,7 +264,6 @@ AFRAME.registerComponent("end-menu", {
   },
 
   onReplayClick: function () {
-    console.log("🔄 Relancement du jeu...");
 
     // Supprimer le HUD actuel
     const hud = document.getElementById("game-hud");
@@ -308,6 +304,5 @@ AFRAME.registerComponent("end-menu", {
       }
     }, 350);
 
-    console.log("🏁 Menu de fin caché");
   },
 });
