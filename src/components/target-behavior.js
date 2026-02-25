@@ -97,12 +97,29 @@ AFRAME.registerComponent('target-behavior', {
       }
     }
     
-    // IMPORTANT: Réajuster flightCenter pour qu'il soit dans les bounds
+    // IMPORTANT: Réajuster flightCenter pour qu'il soit au centre de la pièce
     if (this.roomBounds) {
-      this.flightCenter.x = Math.max(this.roomBounds.minX + 0.5, Math.min(this.roomBounds.maxX - 0.5, this.flightCenter.x))
-      this.flightCenter.z = Math.max(this.roomBounds.minZ + 0.5, Math.min(this.roomBounds.maxZ - 0.5, this.flightCenter.z))
-      this.flightCenter.y = Math.max(this.roomBounds.minY + 0.3, Math.min(this.roomBounds.maxY - 0.3, this.flightCenter.y))
-      console.log(`🎯 Centre de vol réajusté à (${this.flightCenter.x.toFixed(2)}, ${this.flightCenter.y.toFixed(2)}, ${this.flightCenter.z.toFixed(2)})`)
+      // Calculer le centre RÉEL de la pièce
+      const centerX = (this.roomBounds.minX + this.roomBounds.maxX) / 2
+      const centerZ = (this.roomBounds.minZ + this.roomBounds.maxZ) / 2
+      const centerY = (this.roomBounds.minY + this.roomBounds.maxY) / 2
+      
+      // Utiliser le centre de la pièce comme centre de vol (pas la caméra)
+      this.flightCenter.x = centerX
+      this.flightCenter.z = centerZ
+      this.flightCenter.y = centerY
+      
+      // CALCULER le rayon maximum possible pour ne JAMAIS sortir des murs
+      const roomHalfWidth = (this.roomBounds.maxX - this.roomBounds.minX) / 2
+      const roomHalfDepth = (this.roomBounds.maxZ - this.roomBounds.minZ) / 2
+      
+      // Le rayon ne doit JAMAIS dépasser la moitié de la dimension la plus petite - marge de sécurité
+      const safetyMargin = 0.8 // 80cm de marge
+      this.maxSafeRadius = Math.min(roomHalfWidth, roomHalfDepth) - safetyMargin
+      this.maxSafeRadius = Math.max(this.maxSafeRadius, 0.5) // Au moins 50cm
+      
+      console.log(`🎯 Centre de vol au CENTRE de la pièce: (${this.flightCenter.x.toFixed(2)}, ${this.flightCenter.y.toFixed(2)}, ${this.flightCenter.z.toFixed(2)})`)
+      console.log(`📏 Rayon de vol SÉCURISÉ: ${this.maxSafeRadius.toFixed(2)}m (pièce: ${roomHalfWidth.toFixed(1)}x${roomHalfDepth.toFixed(1)})`)
     }
     
     this.isFlying = true
@@ -229,31 +246,32 @@ AFRAME.registerComponent('target-behavior', {
     
     // Mouvement circulaire/elliptique avec variation
     const speed = this.data.flySpeed
-    const radius = this.data.flyRadius
     const heightVar = this.data.flyHeight
+    
+    // UTILISER le rayon sécurisé calculé dans startFlying()
+    const safeRadius = this.maxSafeRadius || Math.min(this.data.flyRadius, 1.5)
     
     // Angle de rotation autour du centre
     const baseAngle = this.flightPhase + this.flightTime * speed * 0.5 * this.flightDirection
-    const wobble = Math.sin(this.flightTime * 2) * 0.3
+    const wobble = Math.sin(this.flightTime * 2) * 0.2
     const angle = baseAngle + wobble
     
-    // Calcul de la nouvelle position
-    const radiusX = radius * (1 + Math.sin(this.flightTime * 0.7) * 0.3)
-    const radiusZ = radius * (1 + Math.cos(this.flightTime * 0.5) * 0.2)
+    // Calcul de la nouvelle position avec rayon SÉCURISÉ
+    const radiusX = safeRadius * (0.7 + Math.sin(this.flightTime * 0.7) * 0.3)
+    const radiusZ = safeRadius * (0.7 + Math.cos(this.flightTime * 0.5) * 0.3)
     
     let newX = this.flightCenter.x + Math.cos(angle) * radiusX
     let newZ = this.flightCenter.z + Math.sin(angle) * radiusZ
     
-    // Variation de hauteur
-    const baseY = this.startPosition.y
-    let newY = baseY + Math.sin(this.flightTime * 1.5) * heightVar
+    // Variation de hauteur autour du centre Y (pas startPosition)
+    let newY = this.flightCenter.y + Math.sin(this.flightTime * 1.5) * heightVar
     
-    // NOUVEAU: Appliquer le système de rebond aux murs
+    // CLAMPING STRICT : Garantir que la position est TOUJOURS dans les limites
     if (this.roomBounds) {
-      const bounceResult = this.checkAndApplyBouncing(newX, newY, newZ)
-      newX = bounceResult.x
-      newY = bounceResult.y
-      newZ = bounceResult.z
+      const margin = 0.3 // 30cm de marge des murs
+      newX = Math.max(this.roomBounds.minX + margin, Math.min(this.roomBounds.maxX - margin, newX))
+      newZ = Math.max(this.roomBounds.minZ + margin, Math.min(this.roomBounds.maxZ - margin, newZ))
+      newY = Math.max(this.roomBounds.minY + margin, Math.min(this.roomBounds.maxY - margin, newY))
     }
     
     // Appliquer la nouvelle position - Translater le modèle GLB enfant

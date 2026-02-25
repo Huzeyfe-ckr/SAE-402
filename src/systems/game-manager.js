@@ -125,8 +125,8 @@ AFRAME.registerSystem("game-manager", {
       if (this.gameTime <= 0) {
         this.endGame();
       }
-    }, 10);
-  },
+    }, 1000);
+  }, 
 
   updateTimerDisplay: function () {
     const timerEl = document.getElementById("timer-value");

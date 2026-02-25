@@ -255,45 +255,23 @@ AFRAME.registerComponent("bow-draw-system", {
       this.data.minArrowSpeed +
       (this.data.maxArrowSpeed - this.data.minArrowSpeed) * drawRatio;
 
-    // --- DIRECTION : Utiliser l'orientation de l'arc ---
+    // --- DIRECTION : Basée sur l'orientation de la main gauche (arc) ---
     this.leftHand.object3D.getWorldPosition(this.tempVectorLeft);
+    this.rightHand.object3D.getWorldPosition(this.tempVectorRight);
     
-    // Utiliser directement la rotation de la main gauche (arc)
+    // La flèche part dans la direction où pointe la main gauche (l'arc)
+    // On utilise l'axe Y négatif car le contrôleur pointe vers le haut par défaut
+    const shootDirection = new THREE.Vector3(0, -1, 0);
+    const leftHandQuat = this.leftHand.object3D.getWorldQuaternion(new THREE.Quaternion());
+    shootDirection.applyQuaternion(leftHandQuat);
+    shootDirection.normalize();
+    
+    // Créer le quaternion de rotation pour la flèche
     const aimQuaternion = new THREE.Quaternion();
-    this.leftHand.object3D.getWorldQuaternion(aimQuaternion);
+    aimQuaternion.setFromUnitVectors(new THREE.Vector3(0, 0, -1), shootDirection);
     
-    // GARANTIR QUE LA FLÈCHE NE VA PAS EN ARRIÈRE
-    const camera = this.el.sceneEl.camera;
-    const cameraDir = new THREE.Vector3(0, 0, -1);
-    cameraDir.applyQuaternion(camera.quaternion);
-    
-    // Vérifier la direction initiale
-    const testDir = new THREE.Vector3(0, 0, -1);
-    testDir.applyQuaternion(aimQuaternion);
-    
-    // Si la flèche pointe vers l'arrière (dot product négatif avec direction camera), corriger
-    if (testDir.dot(cameraDir) < -0.1) {
-      console.log("⚠️ Direction arrière détectée, correction de 180°");
-      const correction = new THREE.Quaternion();
-      correction.setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI);
-      aimQuaternion.multiply(correction);
-    }
-    
-    const compensationEuler = new THREE.Euler(
-      THREE.MathUtils.degToRad(-90),
-      THREE.MathUtils.degToRad(0),
-      THREE.MathUtils.degToRad(0),
-      'XYZ'
-    );
-    const compensationQuaternion = new THREE.Quaternion();
-    compensationQuaternion.setFromEuler(compensationEuler);
-    
-    // Appliquer la compensation à la rotation finale
-    aimQuaternion.multiply(compensationQuaternion);
-    
-    // Calculer la direction pour le log
-    const aimDirection = new THREE.Vector3(0, 0, -1);
-    aimDirection.applyQuaternion(aimQuaternion);
+    // Log la direction finale
+    const aimDirection = shootDirection.clone();
 
     console.log(
       `🏹 TIRE ! Distance: ${this.drawDistance.toFixed(2)}m, Puissance: ${(drawRatio * 100).toFixed(0)}%, Vitesse: ${arrowSpeed.toFixed(1)}`,
