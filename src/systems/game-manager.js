@@ -306,35 +306,70 @@ AFRAME.registerSystem("game-manager", {
     }
   },
 
+  /**
+   * Calcule un point de spawn dans la zone centrale de la pièce (loin des murs)
+   */
+  calculateCenterSpawnPoint: function () {
+    const camera = this.el.sceneEl.camera;
+    const cameraPos = camera
+      ? camera.getWorldPosition(new THREE.Vector3())
+      : new THREE.Vector3(0, 1.6, 0);
+
+    let roomCenterX = cameraPos.x;
+    let roomCenterZ = cameraPos.z;
+    let safeHalfX = 1.5; // demi-largueur sécurisée par défaut
+    let safeHalfZ = 1.5;
+
+    // Calculer les bornes réelles depuis les murs détectés
+    if (this.wallDebug && this.wallDebug.wallData && this.wallDebug.wallData.length > 0) {
+      let minX = Infinity, maxX = -Infinity;
+      let minZ = Infinity, maxZ = -Infinity;
+
+      this.wallDebug.wallData.forEach(w => {
+        if (!w.isFloor && !w.isCeiling) {
+          const halfW = (w.width || 2) / 2;
+          minX = Math.min(minX, w.position.x - halfW);
+          maxX = Math.max(maxX, w.position.x + halfW);
+          minZ = Math.min(minZ, w.position.z - halfW);
+          maxZ = Math.max(maxZ, w.position.z + halfW);
+        }
+      });
+
+      if (minX !== Infinity) {
+        roomCenterX = (minX + maxX) / 2;
+        roomCenterZ = (minZ + maxZ) / 2;
+        const wallMargin = 1.5; // 1.5m loin des murs
+        safeHalfX = Math.max(0.5, (maxX - minX) / 2 - wallMargin);
+        safeHalfZ = Math.max(0.5, (maxZ - minZ) / 2 - wallMargin);
+      }
+    }
+
+    // Position aléatoire dans la zone centrale de la pièce
+    const spawnX = roomCenterX + (Math.random() - 0.5) * 2 * safeHalfX;
+    const spawnZ = roomCenterZ + (Math.random() - 0.5) * 2 * safeHalfZ;
+    const spawnY = 1.6 + Math.random() * 1.2; // Entre 1.6m et 2.8m de hauteur
+
+    const pos = new THREE.Vector3(spawnX, spawnY, spawnZ);
+
+    // Orienter la cible vers le joueur
+    const toCamera = new THREE.Vector3().subVectors(cameraPos, pos);
+    const angleY = Math.atan2(toCamera.x, toCamera.z) * (180 / Math.PI);
+
+    return {
+      position: pos,
+      rotation: { x: 0, y: angleY, z: 0 },
+      surfaceType: "air",
+      isRealSurface: true,
+      normal: new THREE.Vector3(0, 0, 1)
+    };
+  },
+
   spawnRandomTarget: function () {
     const target = document.createElement("a-entity");
     const targetId = `target-${Date.now()}`;
 
-    let spawnData = null;
-
-    // PRIORITÉ 1: Utiliser les murs du wall-debug
-    if (this.wallDebug && this.wallDebug.getRandomSpawnPoint) {
-      spawnData = this.wallDebug.getRandomSpawnPoint();
-      if (spawnData) {
-      }
-    }
-
-    // Fallback: hit-test pour surfaces réelles
-    if (!spawnData && this.sceneMeshHandler && this.sceneMeshHandler.isHitTestActive()) {
-      const detected = this.sceneMeshHandler.getDetectedSurface();
-      if (detected) {
-        spawnData = this.calculateSpawnFromHitTest(detected);
-        // Rejeter si ce n'est pas un mur (on veut des surfaces verticales)
-        if (spawnData && !spawnData.isVertical && Math.random() < 0.7) {
-          spawnData = null; // 70% de chance de rejeter les surfaces non-verticales
-        }
-      }
-    }
-
-    // Fallback sur surface-detector
-    if (!spawnData && this.surfaceDetector) {
-      spawnData = this.surfaceDetector.getRandomSpawnPoint();
-    }
+    // Toujours spawner au centre de la pièce dans les airs
+    let spawnData = this.calculateCenterSpawnPoint();
 
     if (!spawnData) return;
 
@@ -352,17 +387,9 @@ AFRAME.registerSystem("game-manager", {
         );
 
     const distance = pos.distanceTo(cameraPos);
-    if (distance < 1.5 || distance > 10) return;
+    if (distance < 0.5 || distance > 8) return;
 
-    const toTarget = new THREE.Vector3()
-      .subVectors(pos, cameraPos)
-      .normalize();
-    const cameraForward = new THREE.Vector3(0, 0, -1).applyQuaternion(
-      camera?.quaternion || new THREE.Quaternion(),
-    );
-    const angle = Math.acos(toTarget.dot(cameraForward)) * (180 / Math.PI);
-    const maxAngle = this.firstTargetSpawned ? 60 : 30;
-    if (angle > maxAngle) return;
+    // Pas de filtre d'angle : cibles partout autour du joueur (360°)
 
     this.ensureFacingCamera(spawnData);
 
@@ -372,7 +399,7 @@ AFRAME.registerSystem("game-manager", {
       if (existing.object3D.position.distanceTo(pos) < minDistance) return;
     }
 
-    const scale = 0.08 + Math.random() * 0.04; // Entre 0.08 et 0.12
+    const scale = 0.12 + Math.random() * 0.06; // Entre 0.12 et 0.18 - plus visible
 
     // Sélectionner un type de cible aléatoire
     const targetType = getRandomTargetType();

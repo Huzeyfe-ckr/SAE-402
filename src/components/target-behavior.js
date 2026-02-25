@@ -24,33 +24,25 @@ AFRAME.registerComponent('target-behavior', {
   init: function () {
     this.currentHp = this.data.hp
     this.hitCount = 0
-    this.hitByArrows = new Set() // Tracker les flèches qui ont déjà touché cette cible
-    this.arrowElements = [] // Stocker les références des flèches plantées
+    this.hitByArrows = new Set()
+    this.arrowElements = []
     this.surfaceType = this.el.getAttribute('surface-type') || 'random'
     
     // Variables pour le vol
     this.isFlying = false
     this.flightTime = 0
     this.startPosition = null
-    this.flightCenter = null
-    this.flightPhase = Math.random() * Math.PI * 2 // Phase aléatoire pour désynchroniser les oiseaux
-    this.flightDirection = Math.random() > 0.5 ? 1 : -1 // Sens de rotation
-    this.verticalOffset = 0
     this.roomBounds = null
-    this.flyStartDelay = 500 + Math.random() * 1000 // Délai avant le vol
+    this.flyStartDelay = 200 + Math.random() * 500
     this.initTime = Date.now()
     this.lastTickTime = Date.now()
     this.tickInterval = null
+
+    // Navigation par waypoints
+    this.currentVelocity = new THREE.Vector3()
+    this.targetWaypoint = null
+    this.waypointReachDistance = 0.4
     
-    // NOUVEAU: Variables pour le rebond aux murs
-    this.reboundDistance = 0.5 // Distance de détection du rebond (m)
-    this.lastBounceTime = 0 // Timestamp du dernier rebond
-    this.bounceTimelock = 300 // Cooldown entre rebonds (ms)
-    this.bounceForce = 1.5 // Intensité du rebond
-    
-    
-    // BACKUP: Si tick() n'est pas appelé par A-Frame, utiliser setInterval
-    // Vérifier après 2 secondes si tick a été appelé
     const self = this
     setTimeout(() => {
       if (!self.tickLogged && self.data.movable) {
@@ -65,62 +57,43 @@ AFRAME.registerComponent('target-behavior', {
   startFlying: function () {
     if (this.isFlying) return
     if (!this.el.object3D) return
-    
-    // Récupérer la position initiale
-    const worldPos = new THREE.Vector3()
-    this.el.object3D.getWorldPosition(worldPos)
-    this.startPosition = worldPos.clone()
-    
-    // Le centre de vol est la position du joueur (caméra)
-    const camera = this.el.sceneEl.camera
-    if (camera) {
-      this.flightCenter = new THREE.Vector3()
-      camera.getWorldPosition(this.flightCenter)
-      this.flightCenter.y = worldPos.y // Garder la même hauteur de base
-    } else {
-      this.flightCenter = worldPos.clone()
-    }
-    
-    // Récupérer les limites de la pièce depuis wall-debug
+
+    // Récupérer les limites de la pièce
     const wallDebugEl = this.el.sceneEl.querySelector('[wall-debug]')
     if (wallDebugEl && wallDebugEl.components['wall-debug']) {
-      const wallData = wallDebugEl.components['wall-debug'].wallData || []
-      this.calculateRoomBounds(wallData)
+      this.calculateRoomBounds(wallDebugEl.components['wall-debug'].wallData || [])
     } else {
-      // Limites par défaut si pas de wall-debug
-      this.roomBounds = {
-        minX: -4, maxX: 4,
-        minY: 2.8, maxY: 8.5,
-        minZ: -4, maxZ: 4
-      }
+      this.roomBounds = { minX: -4, maxX: 4, minY: 1.0, maxY: 2.8, minZ: -4, maxZ: 4 }
     }
-    
-    // IMPORTANT: Réajuster flightCenter pour qu'il soit au centre de la pièce
-    if (this.roomBounds) {
-      // Calculer le centre RÉEL de la pièce
-      const centerX = (this.roomBounds.minX + this.roomBounds.maxX) / 2
-      const centerZ = (this.roomBounds.minZ + this.roomBounds.maxZ) / 2
-      const centerY = (this.roomBounds.minY + this.roomBounds.maxY) / 2
-      
-      // Utiliser le centre de la pièce comme centre de vol (pas la caméra)
-      this.flightCenter.x = centerX
-      this.flightCenter.z = centerZ
-      this.flightCenter.y = centerY
-      
-      // CALCULER le rayon maximum possible pour ne JAMAIS sortir des murs
-      const roomHalfWidth = (this.roomBounds.maxX - this.roomBounds.minX) / 2
-      const roomHalfDepth = (this.roomBounds.maxZ - this.roomBounds.minZ) / 2
-      
-      // Le rayon ne doit JAMAIS dépasser la moitié de la dimension la plus petite - marge de sécurité
-      const safetyMargin = 0.8 // 80cm de marge
-      this.maxSafeRadius = Math.min(roomHalfWidth, roomHalfDepth) - safetyMargin
-      this.maxSafeRadius = Math.max(this.maxSafeRadius, 0.5) // Au moins 50cm
-      
-    }
-    
+
+    // Vélocité initiale aléatoire
+    const angle = Math.random() * Math.PI * 2
+    const speed = this.data.flySpeed
+    this.currentVelocity.set(
+      Math.cos(angle) * speed,
+      (Math.random() - 0.5) * speed * 0.3,
+      Math.sin(angle) * speed
+    )
+
+    // Premier waypoint
+    this.pickNewWaypoint()
+
     this.isFlying = true
     this.flightTime = 0
-    
+  },
+
+  /**
+   * Choisit un nouveau point de destination aléatoire dans la pièce
+   */
+  pickNewWaypoint: function () {
+    if (!this.roomBounds) return
+    const b = this.roomBounds
+    const margin = 0.4
+    this.targetWaypoint = new THREE.Vector3(
+      b.minX + margin + Math.random() * (b.maxX - b.minX - margin * 2),
+      b.minY + margin + Math.random() * (b.maxY - b.minY - margin * 2),
+      b.minZ + margin + Math.random() * (b.maxZ - b.minZ - margin * 2)
+    )
   },
 
   /**
@@ -139,13 +112,14 @@ AFRAME.registerComponent('target-behavior', {
     
     let minX = Infinity, maxX = -Infinity
     let minZ = Infinity, maxZ = -Infinity
-    let minY = 1.8, maxY = 8.5 // CORRIGÉ: altitude plus haute pour les oiseaux
+    let minY = 1.0, maxY = 2.8 // Hauteurs à hauteur de joueur (1m à 2.8m)
     
     wallData.forEach(wall => {
       if (wall.isFloor) {
-        minY = wall.position.y + 1.5 // CORRIGÉ: 1.5m au-dessus du sol (plus haut)
+        minY = wall.position.y + 1.0 // 1m au-dessus du sol
+        maxY = wall.position.y + 2.8 // Max 2.8m au-dessus du sol (même sans plafond)
       } else if (wall.isCeiling) {
-        maxY = wall.position.y - 0.3 // Un peu plus bas en dessous du plafond
+        maxY = Math.min(wall.position.y - 0.3, minY + 2.0) // Max 2m de range vertical
       } else {
         // C'est un mur
         const pos = wall.position
@@ -158,8 +132,8 @@ AFRAME.registerComponent('target-behavior', {
       }
     })
     
-    // GRANDE marge pour éviter les collisions avec les murs (1.2m de distance)
-    const margin = 1.2
+    // Grande marge pour garder les cibles au centre de la pièce (1.5m des murs)
+    const margin = 1.5
     this.roomBounds = {
       minX: minX === Infinity ? -4 : minX + margin,
       maxX: maxX === -Infinity ? 4 : maxX - margin,
@@ -219,90 +193,70 @@ AFRAME.registerComponent('target-behavior', {
   updateFlight: function (time, deltaTime) {
     // Vérifier si on doit démarrer le vol (après le délai)
     if (this.data.movable && !this.isFlying && this.initTime) {
-      const elapsed = Date.now() - this.initTime
-      if (elapsed >= this.flyStartDelay) {
+      if (Date.now() - this.initTime >= this.flyStartDelay) {
         this.startFlying()
       }
       return
     }
-    
-    if (!this.isFlying || !this.flightCenter || !this.startPosition) return
-    
-    // S'assurer que deltaTime est valide
-    if (!deltaTime || deltaTime <= 0 || deltaTime > 1000) {
-      deltaTime = 16
-    }
-    
+
+    if (!this.isFlying || !this.targetWaypoint || !this.roomBounds) return
+
+    if (!deltaTime || deltaTime <= 0 || deltaTime > 1000) deltaTime = 16
     const dt = deltaTime / 1000
     this.flightTime += dt
-    
-    // Mouvement circulaire/elliptique avec variation
+
     const speed = this.data.flySpeed
-    const heightVar = this.data.flyHeight
-    
-    // UTILISER le rayon sécurisé calculé dans startFlying()
-    const safeRadius = this.maxSafeRadius || Math.min(this.data.flyRadius, 1.5)
-    
-    // Angle de rotation autour du centre
-    const baseAngle = this.flightPhase + this.flightTime * speed * 0.5 * this.flightDirection
-    const wobble = Math.sin(this.flightTime * 2) * 0.2
-    const angle = baseAngle + wobble
-    
-    // Calcul de la nouvelle position avec rayon SÉCURISÉ
-    const radiusX = safeRadius * (0.7 + Math.sin(this.flightTime * 0.7) * 0.3)
-    const radiusZ = safeRadius * (0.7 + Math.cos(this.flightTime * 0.5) * 0.3)
-    
-    let newX = this.flightCenter.x + Math.cos(angle) * radiusX
-    let newZ = this.flightCenter.z + Math.sin(angle) * radiusZ
-    
-    // Variation de hauteur autour du centre Y (pas startPosition)
-    let newY = this.flightCenter.y + Math.sin(this.flightTime * 1.5) * heightVar
-    
-    // CLAMPING STRICT : Garantir que la position est TOUJOURS dans les limites
-    if (this.roomBounds) {
-      const margin = 0.3 // 30cm de marge des murs
-      newX = Math.max(this.roomBounds.minX + margin, Math.min(this.roomBounds.maxX - margin, newX))
-      newZ = Math.max(this.roomBounds.minZ + margin, Math.min(this.roomBounds.maxZ - margin, newZ))
-      newY = Math.max(this.roomBounds.minY + margin, Math.min(this.roomBounds.maxY - margin, newY))
+    const pos = this.el.object3D.position
+
+    // Direction vers le waypoint
+    const toWaypoint = new THREE.Vector3().subVectors(this.targetWaypoint, pos)
+    const distToWaypoint = toWaypoint.length()
+
+    // Nouveau waypoint si on est arrivé
+    if (distToWaypoint < this.waypointReachDistance) {
+      this.pickNewWaypoint()
+      return
     }
-    
-    // Appliquer la nouvelle position - Translater le modèle GLB enfant
-    const glbModel = this.el.querySelector('[gltf-model]')
-    if (glbModel && glbModel.object3D) {
-      glbModel.object3D.position.set(newX, newY, newZ)
-    } else {
-      // Fallback: translater le conteneur lui-même
-      this.el.object3D.position.set(newX, newY, newZ)
+
+    // Désiré : aller vers le waypoint à la bonne vitesse
+    const desiredVelocity = toWaypoint.normalize().multiplyScalar(speed)
+
+    // Virage progressif (steering) : lerp entre vélocité actuelle et désirée
+    const turnSpeed = 2.5 // Plus haut = virage plus serré
+    this.currentVelocity.lerp(desiredVelocity, Math.min(1, turnSpeed * dt))
+
+    // Garder une vitesse constante
+    if (this.currentVelocity.lengthSq() > 0.001) {
+      this.currentVelocity.normalize().multiplyScalar(speed)
     }
-    
-    // Debug: log périodique (commenté - trop verbeux)
-    // if (!this.lastPosLog2 || this.flightTime - this.lastPosLog2 > 2) {
-    //   this.lastPosLog2 = this.flightTime
-    // }
-    
-    // Orienter l'oiseau - UTILISER setAttribute pour A-Frame
-    const velocity = new THREE.Vector3(
-      -Math.sin(angle) * speed * this.flightDirection,
-      Math.cos(this.flightTime * 1.5) * heightVar * 1.5,
-      Math.cos(angle) * speed * this.flightDirection
-    )
-    
-    if (velocity.lengthSq() > 0.001) {
-      const targetAngleY = Math.atan2(velocity.x, velocity.z) * (180 / Math.PI)
-      const pitchAngle = Math.atan2(velocity.y, Math.sqrt(velocity.x * velocity.x + velocity.z * velocity.z)) * (180 / Math.PI)
-      const bankAngle = Math.sin(this.flightTime * speed * 0.5) * 0.2 * (180 / Math.PI)
-      
-      const rotX = -pitchAngle * 0.3
-      const rotY = targetAngleY
-      const rotZ = bankAngle * this.flightDirection
-      
-      // Mettre à jour directement l'objet 3D
+
+    // Nouvelle position
+    let newX = pos.x + this.currentVelocity.x * dt
+    let newY = pos.y + this.currentVelocity.y * dt
+    let newZ = pos.z + this.currentVelocity.z * dt
+
+    // Clamping dans les limites de la pièce + choisir nouveau waypoint si on frappe un bord
+    const b = this.roomBounds
+    const m = 0.3
+    if (newX < b.minX + m || newX > b.maxX - m ||
+        newY < b.minY + m || newY > b.maxY - m ||
+        newZ < b.minZ + m || newZ > b.maxZ - m) {
+      newX = Math.max(b.minX + m, Math.min(b.maxX - m, newX))
+      newY = Math.max(b.minY + m, Math.min(b.maxY - m, newY))
+      newZ = Math.max(b.minZ + m, Math.min(b.maxZ - m, newZ))
+      this.pickNewWaypoint() // Choisir une nouvelle destination immédiatement
+    }
+
+    this.el.object3D.position.set(newX, newY, newZ)
+
+    // Orienter la cible dans la direction du vol
+    if (this.currentVelocity.lengthSq() > 0.01) {
       this.el.object3D.rotation.order = 'YXZ'
-      this.el.object3D.rotation.set(
-        THREE.MathUtils.degToRad(rotX),
-        THREE.MathUtils.degToRad(rotY),
-        THREE.MathUtils.degToRad(rotZ)
-      )
+      const angleY = Math.atan2(this.currentVelocity.x, this.currentVelocity.z)
+      const flatLen = Math.sqrt(this.currentVelocity.x ** 2 + this.currentVelocity.z ** 2)
+      const angleX = -Math.atan2(this.currentVelocity.y, flatLen) * 0.4
+      const angleZ = Math.sin(this.flightTime * speed * 0.5) * 0.15
+      this.el.object3D.rotation.set(angleX, angleY, angleZ)
     }
   },
 
