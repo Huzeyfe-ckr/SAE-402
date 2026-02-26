@@ -133,9 +133,9 @@ AFRAME.registerComponent("vr-menu", {
     separator.setAttribute("position", "0 0.48 0.01");
     menu.appendChild(separator);
 
-    // Section QUÊTE
+    // Section QUEST
     const objectifTitle = document.createElement("a-text");
-    objectifTitle.setAttribute("value", "~ QUETE ~");
+    objectifTitle.setAttribute("value", "~ QUEST ~");
     objectifTitle.setAttribute("position", "0 0.35 0.01");
     objectifTitle.setAttribute("align", "center");
     objectifTitle.setAttribute("color", COLORS.gold);
@@ -145,7 +145,7 @@ AFRAME.registerComponent("vr-menu", {
     const objectifText = document.createElement("a-text");
     objectifText.setAttribute(
       "value",
-      "Abattez les cibles avec vos\nfleches pour gagner des points !",
+      "Defeat targets with your\narrows to earn points!",
     );
     objectifText.setAttribute("position", "0 0.2 0.01");
     objectifText.setAttribute("align", "center");
@@ -153,9 +153,9 @@ AFRAME.registerComponent("vr-menu", {
     objectifText.setAttribute("width", "1.3");
     menu.appendChild(objectifText);
 
-    // Section CONTROLES
+    // Section CONTROLS
     const controlesTitle = document.createElement("a-text");
-    controlesTitle.setAttribute("value", "~ CONTROLES ~");
+    controlesTitle.setAttribute("value", "~ CONTROLS ~");
     controlesTitle.setAttribute("position", "0 0.02 0.01");
     controlesTitle.setAttribute("align", "center");
     controlesTitle.setAttribute("color", COLORS.gold);
@@ -165,7 +165,7 @@ AFRAME.registerComponent("vr-menu", {
     const controlesText = document.createElement("a-text");
     controlesText.setAttribute(
       "value",
-      "Main gauche : Arc\nMain droite : Tirer (Gachette)",
+      "Left hand: Bow\nRight hand: Shoot (Trigger)",
     );
     controlesText.setAttribute("position", "0 -0.12 0.01");
     controlesText.setAttribute("align", "center");
@@ -175,7 +175,7 @@ AFRAME.registerComponent("vr-menu", {
 
     // Section SCORING
     const scoringTitle = document.createElement("a-text");
-    scoringTitle.setAttribute("value", "~ RECOMPENSES ~");
+    scoringTitle.setAttribute("value", "~ REWARDS ~");
     scoringTitle.setAttribute("position", "0 -0.28 0.01");
     scoringTitle.setAttribute("align", "center");
     scoringTitle.setAttribute("color", COLORS.gold);
@@ -185,7 +185,7 @@ AFRAME.registerComponent("vr-menu", {
     const scoringText = document.createElement("a-text");
     scoringText.setAttribute(
       "value",
-      "Centre : x3  |  Milieu : x2  |  Bord : x1",
+      "Center: x3 | Middle: x2 | Edge: x1",
     );
     scoringText.setAttribute("position", "0 -0.4 0.01");
     scoringText.setAttribute("align", "center");
@@ -203,7 +203,7 @@ AFRAME.registerComponent("vr-menu", {
   createScanIndicator: function (menu, COLORS) {
     // Texte de scan
     this.scanText = document.createElement("a-text");
-    this.scanText.setAttribute("value", "⏳ SCAN DE LA PIECE...");
+    this.scanText.setAttribute("value", "⏳ ROOM SCAN IN PROGRESS...");
     this.scanText.setAttribute("position", "0 -0.58 0.01");
     this.scanText.setAttribute("align", "center");
     this.scanText.setAttribute("color", COLORS.gold);

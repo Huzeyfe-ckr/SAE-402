@@ -25,8 +25,9 @@ AFRAME.registerComponent("arrow-physics", {
     const worldQuaternion = new THREE.Quaternion();
     this.el.object3D.getWorldQuaternion(worldQuaternion);
 
-    // Direction initiale de la flèche
-    // L'axe forward en Three.js est (0, 0, -1)
+    // Direction initiale de la flèche basée sur le quaternion
+    // Le quaternion a déjà été défini avec la bonne direction dans bow-draw-system
+    // On applique simplement le quaternion au vecteur forward standard
     const initialDirection = new THREE.Vector3(0, 0, -1);
     initialDirection.applyQuaternion(worldQuaternion);
     initialDirection.normalize();

@@ -104,7 +104,7 @@ AFRAME.registerComponent("score-hud", {
 
     // Label timer
     const timerLabel = document.createElement("a-text");
-    timerLabel.setAttribute("value", "secondes");
+    timerLabel.setAttribute("value", "seconds");
     timerLabel.setAttribute("align", "center");
     timerLabel.setAttribute("color", this.COLORS.gold);
     timerLabel.setAttribute("width", "0.8");
@@ -127,7 +127,7 @@ AFRAME.registerComponent("score-hud", {
 
     // Score
     this.scoreText = document.createElement("a-text");
-    this.scoreText.setAttribute("value", "Butin: 0");
+    this.scoreText.setAttribute("value", "Loot: 0");
     this.scoreText.setAttribute("align", "center");
     this.scoreText.setAttribute("color", this.COLORS.parchment);
     this.scoreText.setAttribute("width", "1.2");
@@ -146,7 +146,7 @@ AFRAME.registerComponent("score-hud", {
       const pointsGained = this.score - oldScore
       
       if (this.scoreText) {
-        this.scoreText.setAttribute("value", `Butin: ${this.score}`);
+        this.scoreText.setAttribute("value", `Loot: ${this.score}`);
       }
       
       // Animation différente selon les points gagnés

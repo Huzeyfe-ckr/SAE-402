@@ -245,18 +245,15 @@ AFRAME.registerComponent("bow-draw-system", {
       this.data.minArrowSpeed +
       (this.data.maxArrowSpeed - this.data.minArrowSpeed) * drawRatio;
 
-    // --- DIRECTION : Basée sur la ligne de tir (main droite vers main gauche) ---
+    // --- DIRECTION : Basée sur la ligne de tir (main générant l'impulsion vers avant) ---
     this.leftHand.object3D.getWorldPosition(this.tempVectorLeft);
     this.rightHand.object3D.getWorldPosition(this.tempVectorRight);
     
-    // Direction de tir = de la main droite (corde) vers la main gauche (arc)
-    // C'est la direction naturelle du tir à l'arc
+    // Direction de tir = de la main gauche (arc) vers la main droite (corde tirée en arrière)
+    // Cela donne la direction naturelle de la flèche
     const shootDirection = new THREE.Vector3();
-    shootDirection.subVectors(this.tempVectorLeft, this.tempVectorRight);
+    shootDirection.subVectors(this.tempVectorRight, this.tempVectorLeft);
     shootDirection.normalize();
-    
-    // Inverser pour obtenir la bonne direction de tir (vers l'avant)
-    shootDirection.negate();
     
     // Créer le quaternion de rotation pour la flèche
     const aimQuaternion = new THREE.Quaternion();

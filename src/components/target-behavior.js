@@ -33,10 +33,11 @@ AFRAME.registerComponent('target-behavior', {
     this.flightTime = 0
     this.startPosition = null
     this.roomBounds = null
-    this.flyStartDelay = 200 + Math.random() * 500
+    this.flyStartDelay = 100 // Délai réduit à 100ms pour démarrage rapide
     this.initTime = Date.now()
     this.lastTickTime = Date.now()
     this.tickInterval = null
+    this.object3dReadyCheck = null
 
     // Navigation par waypoints
     this.currentVelocity = new THREE.Vector3()
@@ -44,11 +45,18 @@ AFRAME.registerComponent('target-behavior', {
     this.waypointReachDistance = 0.4
     
     const self = this
-    // Toujours démarrer le backup interval pour s'assurer que tous les oiseaux bougent
+    // NE PAS démarrer immédiatement - attendre que object3D soit prêt
+    // Utiliser une vérification iterative au lieu d'un timeout
     if (this.data.movable) {
-      setTimeout(() => {
-        self.startBackupInterval()
-      }, 500)
+      // Vérifier régulièrement si object3D est prêt et démarrer le vol
+      this.object3dReadyCheck = setInterval(() => {
+        if (self.el.object3D && !self.tickInterval) {
+          console.log('🎯 [TARGET] Object3D ready, starting flight system')
+          self.startBackupInterval()
+          clearInterval(self.object3dReadyCheck)
+          self.object3dReadyCheck = null
+        }
+      }, 50) // Vérifier toutes les 50ms
     }
   },
 
@@ -194,7 +202,9 @@ AFRAME.registerComponent('target-behavior', {
   updateFlight: function (time, deltaTime) {
     // Vérifier si on doit démarrer le vol (après le délai)
     if (this.data.movable && !this.isFlying && this.initTime) {
-      if (Date.now() - this.initTime >= this.flyStartDelay) {
+      const elapsed = Date.now() - this.initTime
+      if (elapsed >= this.flyStartDelay) {
+        console.log('🚀 [TARGET] Starting flight after ' + elapsed + 'ms')
         this.startFlying()
       }
       return
@@ -890,6 +900,11 @@ AFRAME.registerComponent('target-behavior', {
   },
 
   remove: function () {
+    // Nettoyer la vérification object3D ready
+    if (this.object3dReadyCheck) {
+      clearInterval(this.object3dReadyCheck)
+      this.object3dReadyCheck = null
+    }
     // Nettoyer l'intervalle de mouvement
     if (this.moveInterval) {
       clearInterval(this.moveInterval)

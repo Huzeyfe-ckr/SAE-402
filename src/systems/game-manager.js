@@ -558,16 +558,16 @@ AFRAME.registerSystem("game-manager", {
           margin: 10px 0;
         }
       </style>
-      <div class="hud-title">⚔️ CHASSE EN COURS ⚔️</div>
+      <div class="hud-title">⚔️ HUNT IN PROGRESS ⚔️</div>
       <div class="hud-timer" id="timer-value">10</div>
-      <div class="hud-timer-label">secondes restantes</div>
+      <div class="hud-timer-label">seconds remaining</div>
       <div class="hud-separator"></div>
       <div class="hud-stat">
-        <span class="hud-stat-label">Butin :</span>
+        <span class="hud-stat-label">Loot:</span>
         <span class="hud-stat-value" id="score-value">0</span>
       </div>
       <div class="hud-stat">
-        <span class="hud-stat-label">Cibles :</span>
+        <span class="hud-stat-label">Targets:</span>
         <span class="hud-stat-value" id="targets-value">0</span>
       </div>
     `;

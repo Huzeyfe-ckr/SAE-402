@@ -72,10 +72,10 @@ AFRAME.registerComponent("room-scanner", {
     });
     this.scanUI.appendChild(panel);
 
-    // Titre
+    // Title
     const title = document.createElement("a-text");
     title.setAttribute("id", "scan-title");
-    title.setAttribute("value", "🔍 SCAN DE LA PIÈCE");
+    title.setAttribute("value", "🔍 ROOM SCAN");
     title.setAttribute("position", "0 0.2 0.01");
     title.setAttribute("align", "center");
     title.setAttribute("color", "#d4af37");
@@ -85,7 +85,7 @@ AFRAME.registerComponent("room-scanner", {
     // Instructions
     const instructions = document.createElement("a-text");
     instructions.setAttribute("id", "scan-instructions");
-    instructions.setAttribute("value", "Regardez autour de vous\npour détecter les murs");
+    instructions.setAttribute("value", "Look around you\nto detect walls");
     instructions.setAttribute("position", "0 0.05 0.01");
     instructions.setAttribute("align", "center");
     instructions.setAttribute("color", "#f4e4bc");
@@ -184,19 +184,19 @@ AFRAME.registerComponent("room-scanner", {
     const wallCount = this.detectedWalls.size;
     const totalSurfaces = this.detectedSurfaces.length;
 
-    counter.setAttribute("value", `Surfaces: ${totalSurfaces} | Murs: ${wallCount}/4`);
+    counter.setAttribute("value", `Surfaces: ${totalSurfaces} | Walls: ${wallCount}/4`);
 
     // Vérifier si le scan est suffisant
     const hasEnoughSurfaces = totalSurfaces >= this.data.minSurfaces;
     const hasEnoughWalls = wallCount >= this.data.minWalls;
 
     if (hasEnoughSurfaces && hasEnoughWalls) {
-      instructions.setAttribute("value", "✅ Scan complet !\nTirez une flèche pour démarrer");
+      instructions.setAttribute("value", "✅ Scan complete!\nShoot an arrow to start");
       instructions.setAttribute("color", "#4CAF50");
       
-      // Afficher le bouton
+      // Display button
       button.setAttribute("material", "opacity", 1);
-      buttonText.setAttribute("value", "🎯 TIREZ ICI");
+      buttonText.setAttribute("value", "🎯 SHOOT HERE");
     } else {
       let message = "Regardez autour de vous\n";
       if (!hasEnoughWalls) {

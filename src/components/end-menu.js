@@ -82,9 +82,9 @@ AFRAME.registerComponent("end-menu", {
     parchment.setAttribute("position", "0 0 0");
     menu.appendChild(parchment);
 
-    // Titre "FIN DE QUÊTE"
+    // Title "QUEST COMPLETE"
     const title = document.createElement("a-text");
-    title.setAttribute("value", "⚔️ FIN DE QUETE ⚔️");
+    title.setAttribute("value", "⚔️ QUEST COMPLETE ⚔️");
     title.setAttribute("position", "0 0.58 0.01");
     title.setAttribute("align", "center");
     title.setAttribute("color", COLORS.gold);
@@ -107,7 +107,7 @@ AFRAME.registerComponent("end-menu", {
 
     // Label SCORE
     const scoreLabel = document.createElement("a-text");
-    scoreLabel.setAttribute("value", "~ VOTRE BUTIN ~");
+    scoreLabel.setAttribute("value", "~ YOUR LOOT ~");
     scoreLabel.setAttribute("position", "0 0.32 0.01");
     scoreLabel.setAttribute("align", "center");
     scoreLabel.setAttribute("color", COLORS.gold);
@@ -156,7 +156,7 @@ AFRAME.registerComponent("end-menu", {
     const statsText = document.createElement("a-text");
     statsText.setAttribute(
       "value",
-      `Touches: ${this.data.hits}  |  Fleches: ${this.data.arrows}  |  Precision: ${accuracy}%`,
+      `Hits: ${this.data.hits} | Arrows: ${this.data.arrows} | Accuracy: ${accuracy}%`,
     );
     statsText.setAttribute("position", "0 -0.28 0.01");
     statsText.setAttribute("align", "center");
@@ -207,9 +207,9 @@ AFRAME.registerComponent("end-menu", {
     bullseye.classList.add("clickable");
     buttonContainer.appendChild(bullseye);
 
-    // Texte
+    // Text
     const buttonText = document.createElement("a-text");
-    buttonText.setAttribute("value", "🔄 NOUVELLE QUETE");
+    buttonText.setAttribute("value", "🔄 NEW QUEST");
     buttonText.setAttribute("position", "0 -0.22 0");
     buttonText.setAttribute("align", "center");
     buttonText.setAttribute("color", COLORS.gold);
