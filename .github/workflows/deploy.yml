@@ -15,21 +15,20 @@ concurrency:
   group: pages
   cancel-in-progress: true
 
-vars:
-  NODE_VERSION: '20'
-
 jobs:
   build:
     name: Build Project
     runs-on: ubuntu-latest
+    env:
+      NODE_VERSION: '20'
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup Node.js ${{ vars.NODE_VERSION }}
+      - name: Setup Node.js ${{ env.NODE_VERSION }}
         uses: actions/setup-node@v4
         with:
-          node-version: ${{ vars.NODE_VERSION }}
+          node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
 
       - name: Install dependencies
