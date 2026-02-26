@@ -44,11 +44,12 @@ AFRAME.registerComponent('target-behavior', {
     this.waypointReachDistance = 0.4
     
     const self = this
-    setTimeout(() => {
-      if (!self.tickLogged && self.data.movable) {
+    // Toujours démarrer le backup interval pour s'assurer que tous les oiseaux bougent
+    if (this.data.movable) {
+      setTimeout(() => {
         self.startBackupInterval()
-      }
-    }, 2000)
+      }, 500)
+    }
   },
 
   /**

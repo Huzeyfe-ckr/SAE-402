@@ -1,0 +1,241 @@
+/* --- Variables de Design --- */
+:root {
+  --primary-gold: #d4af37;
+  --dark-wood: #2d1b0e;
+  --light-wood: #4a3728;
+  --parchment: #f4e4bc;
+  --text-muted: #a09070;
+  --glass: rgba(0, 0, 0, 0.7);
+  --font-main: "Georgia", serif;
+}
+
+/* --- Global --- */
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-main);
+  background-color: #0a0a0a;
+  color: var(--parchment);
+  line-height: 1.6;
+  overflow-x: hidden;
+}
+
+/* --- Navigation --- */
+nav {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 50px;
+  background: linear-gradient(to bottom, rgba(0,0,0,0.9), transparent);
+  position: fixed;
+  width: 100%;
+  z-index: 1000;
+}
+
+nav .logo {
+  font-size: 1.5rem;
+  font-weight: bold;
+  color: var(--primary-gold);
+  text-shadow: 0 0 10px rgba(212, 175, 55, 0.5);
+}
+
+nav a {
+  color: var(--parchment);
+  text-decoration: none;
+  margin-left: 30px;
+  text-transform: uppercase;
+  font-size: 0.9rem;
+  letter-spacing: 1px;
+  transition: color 0.3s;
+}
+
+nav a:hover {
+  color: var(--primary-gold);
+}
+
+/* --- Hero Section --- */
+.hero {
+  height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  background: linear-gradient(rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0.6)), 
+              url('https://images.unsplash.com/photo-1511072688350-791790f3d51b?auto=format&fit=crop&q=80'); /* Image d'ambiance forêt/archerie */
+  background-size: cover;
+  background-position: center;
+  border-bottom: 4px solid var(--primary-gold);
+}
+
+.hero-content h1 {
+  font-size: 5rem;
+  margin-bottom: 0;
+  color: var(--primary-gold);
+  text-shadow: 3px 3px 0px #000;
+  letter-spacing: 5px;
+}
+
+.hero-content p {
+  font-size: 1.5rem;
+  max-width: 600px;
+  margin: 10px auto;
+}
+
+.muted {
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+/* --- Bouton Style Modèle --- */
+.cta-button {
+  margin-top: 30px;
+  padding: 18px 45px;
+  font-size: 22px;
+  font-weight: 700;
+  font-family: var(--font-main);
+  background: linear-gradient(135deg, var(--dark-wood) 0%, var(--light-wood) 100%);
+  color: var(--parchment);
+  border: 3px solid var(--primary-gold);
+  border-radius: 14px;
+  cursor: pointer;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.6);
+  transition: all 0.3s ease;
+  text-transform: uppercase;
+}
+
+.cta-button:hover {
+  transform: translateY(-3px) scale(1.05);
+  box-shadow: 0 12px 28px rgba(212, 175, 55, 0.3);
+}
+
+/* --- Sections & Containers --- */
+section {
+  padding: 100px 20px;
+}
+
+.container {
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+h2 {
+  text-align: center;
+  font-size: 2.5rem;
+  color: var(--primary-gold);
+  margin-bottom: 50px;
+  position: relative;
+}
+
+h2::after {
+  content: "";
+  display: block;
+  width: 100px;
+  height: 3px;
+  background: var(--primary-gold);
+  margin: 10px auto;
+}
+
+/* --- Gameplay Section --- */
+.gameplay-content {
+  display: grid;
+  grid-template-columns: 1fr 2fr;
+  gap: 50px;
+  align-items: center;
+  background: var(--glass);
+  padding: 40px;
+  border-radius: 20px;
+  border: 1px solid var(--light-wood);
+}
+
+.gameplay-icon {
+  font-size: 8rem;
+  text-align: center;
+}
+
+.gameplay-features {
+  list-style: none;
+  padding: 0;
+}
+
+.gameplay-features li {
+  margin-bottom: 12px;
+  padding-left: 30px;
+  position: relative;
+}
+
+.gameplay-features li::before {
+  content: "🏹";
+  position: absolute;
+  left: 0;
+}
+
+/* --- Tech & Features Grids --- */
+.tech-grid, .features-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 25px;
+}
+
+.tech-card, .feature-card {
+  background: linear-gradient(145deg, #1a1a1a, #252525);
+  padding: 30px;
+  border-radius: 15px;
+  border: 1px solid #333;
+  transition: border-color 0.3s;
+  text-align: center;
+}
+
+.tech-card:hover, .feature-card:hover {
+  border-color: var(--primary-gold);
+}
+
+.tech-icon {
+  font-size: 2.5rem;
+  margin-bottom: 15px;
+}
+
+.tech-card h3, .feature-card h3 {
+  color: var(--primary-gold);
+  margin-top: 0;
+}
+
+/* --- Footer --- */
+footer {
+  text-align: center;
+  padding: 60px 20px;
+  background: #050505;
+  border-top: 1px solid var(--light-wood);
+}
+
+/* --- Scroll Button --- */
+.scroll-to-top {
+  position: fixed;
+  bottom: 30px;
+  left: 30px;
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  background: var(--primary-gold);
+  color: var(--dark-wood);
+  border: none;
+  font-weight: bold;
+  cursor: pointer;
+  opacity: 0;
+  transition: 0.3s;
+  z-index: 1000;
+}
+
+.scroll-to-top.visible {
+  opacity: 1;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .hero-content h1 { font-size: 3rem; }
+  .gameplay-content { grid-template-columns: 1fr; }
+  nav { padding: 15px; }
+  nav a { margin-left: 10px; font-size: 0.7rem; }
+}
