@@ -15,33 +15,48 @@ concurrency:
   group: pages
   cancel-in-progress: true
 
+vars:
+  NODE_VERSION: '20'
+
 jobs:
   build:
+    name: Build Project
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
+      - name: Setup Node.js ${{ vars.NODE_VERSION }}
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: ${{ vars.NODE_VERSION }}
           cache: 'npm'
 
       - name: Install dependencies
         run: npm ci
 
-      - name: Build project
+      - name: Build project with Vite
         run: npm run build
+        env:
+          VITE_ENV: production
 
-      - name: Upload artifact
+      - name: Verify build output
+        run: |
+          echo "Build output contents:"
+          ls -lah ./dist/
+          echo "\nChecking for CSS files:"
+          find ./dist -name "*.css" -o -name "*.js"
+
+      - name: Upload artifact to GitHub Pages
         uses: actions/upload-pages-artifact@v3
         with:
           path: ./dist
+          retention-days: 1
 
   deploy:
+    name: Deploy to GitHub Pages
     needs: build
-    if: github.ref == 'refs/heads/master'
+    if: github.ref == 'refs/heads/master' && github.event_name == 'push'
     runs-on: ubuntu-latest
     environment:
       name: github-pages
@@ -50,3 +65,6 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+
+      - name: Deployment Status
+        run: echo "✅ Successfully deployed to ${{ steps.deployment.outputs.page_url }}"
