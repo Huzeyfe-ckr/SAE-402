@@ -2,7 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <link rel="icon" type="image/svg+xml" href="/SAE-402/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <script src="https://cdn.jsdelivr.net/gh/c-frame/aframe-extras@7.5.0/dist/aframe-extras.min.js"></script>
     <title>SAE4.02 - Archery XR</title>
@@ -55,7 +55,7 @@
       </div>
     </div>
     <button id="xr-button">🥽 ENTER XR</button>
-    
+
       <!-- State management with aframe-state-component -->
     <a-scene
       state="score: 0; gameStarted: false"
@@ -69,68 +69,68 @@
     >
       <!-- Assets loading -->
       <a-assets>
-        <a-asset-item id="bow-model" src="/arc_sanslacorde.glb"></a-asset-item>
-        <a-asset-item id="target-model" src="/target.glb"></a-asset-item>
-        <a-asset-item id="target-fly" src="/target_fly.glb"></a-asset-item>        <a-asset-item id="bat" src="/Bat.glb"></a-asset-item>
-        <a-asset-item id="armabee" src="/Armabee.glb"></a-asset-item>        <a-asset-item id="arrow-model" src="/arrow.glb"></a-asset-item>
+        <a-asset-item id="bow-model" src="/SAE-402/arc_sanslacorde.glb"></a-asset-item>
+        <a-asset-item id="target-model" src="/SAE-402/target.glb"></a-asset-item>
+        <a-asset-item id="target-fly" src="/SAE-402/target_fly.glb"></a-asset-item>        <a-asset-item id="bat" src="/SAE-402/Bat.glb"></a-asset-item>
+        <a-asset-item id="armabee" src="/SAE-402/Armabee.glb"></a-asset-item>        <a-asset-item id="arrow-model" src="/SAE-402/arrow.glb"></a-asset-item>
         <audio
           id="background-sound"
-          src="/son/song-background.mp3"
+          src="/SAE-402/son/song-background.mp3"
           crossorigin="anonymous"
           loop
         ></audio>
         <audio
           id="hit-sound"
-          src="/son/arrow.wav"
+          src="/SAE-402/son/arrow.wav"
           crossorigin="anonymous"
         ></audio>
         <audio
           id="shoot-sound"
-          src="/son/tir_arc.mp3"
+          src="/SAE-402/son/tir_arc.mp3"
           crossorigin="anonymous"
         ></audio>
         <audio
           id="arrow-fly-sound"
-          src="/son/Fleche.wav"
+          src="/SAE-402/son/Fleche.wav"
           crossorigin="anonymous"
         ></audio>
         <audio
           id="bow-creak-sound"
-          src="/son/grincement_fleche.mp3"
+          src="/SAE-402/son/grincement_fleche.mp3"
           crossorigin="anonymous"
         ></audio>
         <!-- Error sound for invalid shot (ANTI-EXPLOIT) -->
         <audio
           id="error-sound"
-          src="/son/error.mp3"
+          src="/SAE-402/son/error.mp3"
           crossorigin="anonymous"
         ></audio>
         <!-- Wind sound (WIND PHYSICS) -->
         <audio
           id="wind-sound"
-          src="/son/wind.mp3"
+          src="/SAE-402/son/wind.mp3"
           crossorigin="anonymous"
           loop
         ></audio>
         <!-- Combo sounds -->
         <audio
           id="combo-double-sound"
-          src="/son/combo-double.wav"
+          src="/SAE-402/son/combo-double.wav"
           crossorigin="anonymous"
         ></audio>
         <audio
           id="combo-triple-sound"
-          src="/son/combo-triple.wav"
+          src="/SAE-402/son/combo-triple.wav"
           crossorigin="anonymous"
         ></audio>
         <audio
           id="combo-quad-sound"
-          src="/son/combo-quad.wav"
+          src="/SAE-402/son/combo-quad.wav"
           crossorigin="anonymous"
         ></audio>
         <audio
           id="combo-penta-sound"
-          src="/son/combo-penta.wav"
+          src="/SAE-402/son/combo-penta.wav"
           crossorigin="anonymous"
         ></audio>
       </a-assets>
