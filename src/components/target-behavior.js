@@ -101,10 +101,10 @@ AFRAME.registerComponent('target-behavior', {
    */
   calculateRoomBounds: function (wallData) {
     if (!wallData || wallData.length === 0) {
-      // Limites par défaut
+      // Limites par défaut - hauteur à niveau joueur (1m à 2.8m)
       this.roomBounds = {
         minX: -4, maxX: 4,
-        minY: 2.8, maxY: 8.5,
+        minY: 1.0, maxY: 2.8,
         minZ: -4, maxZ: 4
       }
       return

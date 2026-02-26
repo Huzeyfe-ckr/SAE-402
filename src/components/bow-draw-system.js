@@ -250,8 +250,8 @@ AFRAME.registerComponent("bow-draw-system", {
     this.rightHand.object3D.getWorldPosition(this.tempVectorRight);
     
     // La flèche part dans la direction où pointe la main gauche (l'arc)
-    // On utilise l'axe Y négatif car le contrôleur pointe vers le haut par défaut
-    const shootDirection = new THREE.Vector3(0, -1, 0);
+    // Axe Y positif après rotation = direction vers l'avant avec 180° de correction
+    const shootDirection = new THREE.Vector3(0, 1, 0);
     const leftHandQuat = this.leftHand.object3D.getWorldQuaternion(new THREE.Quaternion());
     shootDirection.applyQuaternion(leftHandQuat);
     shootDirection.normalize();

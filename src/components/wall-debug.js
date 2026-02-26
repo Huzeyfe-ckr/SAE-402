@@ -204,7 +204,8 @@ AFRAME.registerComponent("wall-debug", {
         this.createWallFromPlane(planeData, wallCount);
         wallCount++;
       } else if (type === "floor") {
-        this.createFloorFromPlane(planeData);
+        // Sol désactivé - seulement murs et plafond
+        // this.createFloorFromPlane(planeData);
         floorCount++;
       } else if (type === "ceiling") {
         this.createCeilingFromPlane(planeData);
@@ -235,20 +236,16 @@ AFRAME.registerComponent("wall-debug", {
       detectedWallHeight = maxY - minY;
     }
     
-    // NE PAS créer de murs manuels si WebXR a détecté des plans
-    // Les murs manuels ne sont créés QUE si aucun plan n'a été détecté du tout
-    const totalPlanes = wallCount + floorCount + ceilingCount;
-    
-    if (wallCount === 0 && totalPlanes === 0) {
-      // Aucun plan détecté du tout - fallback complet
-      this.createManualWalls();
-    } else if (wallCount === 0) {
-      // Des plans ont été détectés mais pas de murs - on n'ajoute PAS de murs manuels
+    // Si aucun mur WebXR détecté, créer des murs de fallback autour du joueur
+    if (wallCount === 0) {
+      const half = detectedRoomSize / 2;
+      this.createManualWalls(roomCenterX, roomCenterZ, half);
     }
     
-    if (floorCount === 0) {
-      this.createFloor(roomCenterX, roomCenterZ, detectedRoomSize);
-    }
+    // Sol désactivé - seulement murs et plafond
+    // if (floorCount === 0) {
+    //   this.createFloor(roomCenterX, roomCenterZ, detectedRoomSize);
+    // }
     if (ceilingCount === 0) {
       this.createCeiling(roomCenterX, roomCenterZ, detectedRoomSize, detectedWallHeight);
     }
@@ -309,27 +306,12 @@ AFRAME.registerComponent("wall-debug", {
     
     wall.setAttribute("material", {
       color: this.data.wallColor,
-      opacity: this.data.wallOpacity,
+      opacity: 0,
       transparent: true,
       side: "double"
     });
     
-    wall.setAttribute("class", "scene-mesh wall-debug-surface collidable spawn-wall arrow-collidable");
-    
-    // Forcer la mise à jour du mesh pour le raycaster
-    wall.addEventListener('loaded', () => {
-      if (wall.object3D && wall.getObject3D('mesh')) {
-        wall.getObject3D('mesh').updateMatrixWorld(true);
-      }
-    });
-    
-    const label = document.createElement("a-text");
-    label.setAttribute("value", `MUR ${index + 1} (XR)`);
-    label.setAttribute("color", "#FFFFFF");
-    label.setAttribute("align", "center");
-    label.setAttribute("scale", "1 1 1");
-    label.setAttribute("position", "0 0 0.02");
-    wall.appendChild(label);
+    wall.setAttribute("class", "room-boundary");
     
     this.el.sceneEl.appendChild(wall);
     this.walls.push(wall);
@@ -375,27 +357,12 @@ AFRAME.registerComponent("wall-debug", {
     
     floor.setAttribute("material", {
       color: this.data.floorColor,
-      opacity: this.data.floorOpacity,
+      opacity: 0,
       transparent: true,
       side: "double"
     });
     
-    floor.setAttribute("class", "scene-mesh wall-debug-surface collidable floor-surface arrow-collidable");
-    
-    // Forcer la mise à jour du mesh pour le raycaster
-    floor.addEventListener('loaded', () => {
-      if (floor.object3D && floor.getObject3D('mesh')) {
-        floor.getObject3D('mesh').updateMatrixWorld(true);
-      }
-    });
-    
-    const label = document.createElement("a-text");
-    label.setAttribute("value", "SOL (XR)");
-    label.setAttribute("color", "#FFFFFF");
-    label.setAttribute("align", "center");
-    label.setAttribute("scale", "2 2 2");
-    label.setAttribute("position", "0 0 0.02");
-    floor.appendChild(label);
+    floor.setAttribute("class", "room-boundary");
     
     this.el.sceneEl.appendChild(floor);
     this.walls.push(floor);
@@ -442,27 +409,12 @@ AFRAME.registerComponent("wall-debug", {
     
     ceiling.setAttribute("material", {
       color: this.data.ceilingColor,
-      opacity: this.data.ceilingOpacity,
+      opacity: 0,
       transparent: true,
       side: "double"
     });
     
-    ceiling.setAttribute("class", "scene-mesh wall-debug-surface collidable ceiling-surface arrow-collidable");
-    
-    // Forcer la mise à jour du mesh pour le raycaster
-    ceiling.addEventListener('loaded', () => {
-      if (ceiling.object3D && ceiling.getObject3D('mesh')) {
-        ceiling.getObject3D('mesh').updateMatrixWorld(true);
-      }
-    });
-    
-    const label = document.createElement("a-text");
-    label.setAttribute("value", "PLAFOND (XR)");
-    label.setAttribute("color", "#FFFFFF");
-    label.setAttribute("align", "center");
-    label.setAttribute("scale", "2 2 2");
-    label.setAttribute("position", "0 0 0.02");
-    ceiling.appendChild(label);
+    ceiling.setAttribute("class", "room-boundary");
     
     this.el.sceneEl.appendChild(ceiling);
     this.walls.push(ceiling);
@@ -484,27 +436,70 @@ AFRAME.registerComponent("wall-debug", {
   createManualRoom: function () {
     if (this.wallsCreated) return;
     this.wallsCreated = true;
-    
-    
-    // On ne crée PAS de murs manuels - seulement sol et plafond
-    // Les murs doivent venir du Room Capture WebXR
-    
+
     const camera = this.el.sceneEl.camera;
     const cameraPos = new THREE.Vector3();
-    if (camera) {
-      camera.getWorldPosition(cameraPos);
-    }
-    
-    // Créer sol et plafond avec une taille par défaut
-    this.createFloor(cameraPos.x, cameraPos.z, this.data.roomSize * 2);
-    this.createCeiling(cameraPos.x, cameraPos.z, this.data.roomSize * 2, this.data.wallHeight);
-    
+    if (camera) camera.getWorldPosition(cameraPos);
+
+    // Centrer la salle autour du joueur
+    const cx = cameraPos.x;
+    const cz = cameraPos.z;
+    const size = this.data.roomSize; // ex. 8m
+    const half = size / 2;
+
+    // 4 murs + plafond centrés sur le joueur (sol désactivé)
+    this.createManualWalls(cx, cz, half);
+    // this.createFloor(cx, cz, size); // Sol désactivé
+    this.createCeiling(cx, cz, size, this.data.wallHeight);
+
     this.emitReadyEvents();
   },
 
-  // Cette fonction n'est plus utilisée - les murs viennent uniquement de WebXR
-  createManualWalls: function () {
-    // Ne crée rien - les murs doivent venir de WebXR Room Capture
+  // Crée 4 murs autour du centre (cx, cz) avec une demi-taille half
+  createManualWalls: function (cx, cz, half) {
+    const wallHeight = this.data.wallHeight;
+    const wallY = this.data.floorY + wallHeight / 2;
+    const size = half * 2;
+
+    const walls = [
+      { id: 'wall-north', x: cx,        y: wallY, z: cz - half, rotY: 0,   nx: 0,  nz: 1,  label: 'MUR NORD' },
+      { id: 'wall-south', x: cx,        y: wallY, z: cz + half, rotY: 180, nx: 0,  nz: -1, label: 'MUR SUD'  },
+      { id: 'wall-east',  x: cx + half, y: wallY, z: cz,        rotY: -90, nx: -1, nz: 0,  label: 'MUR EST'  },
+      { id: 'wall-west',  x: cx - half, y: wallY, z: cz,        rotY: 90,  nx: 1,  nz: 0,  label: 'MUR OUEST'},
+    ];
+
+    walls.forEach(w => {
+      const wall = document.createElement('a-plane');
+      wall.id = w.id;
+      wall.setAttribute('position', { x: w.x, y: w.y, z: w.z });
+      wall.setAttribute('rotation', { x: 0, y: w.rotY, z: 0 });
+      wall.setAttribute('width', size);
+      wall.setAttribute('height', wallHeight);
+      wall.setAttribute('geometry', { primitive: 'plane', width: size, height: wallHeight });
+      wall.setAttribute('material', {
+        color: this.data.wallColor,
+        opacity: 0,
+        transparent: true,
+        side: 'double'
+      });
+      wall.setAttribute('class', 'room-boundary');
+
+      this.el.sceneEl.appendChild(wall);
+      this.walls.push(wall);
+
+      this.wallData.push({
+        entity: wall,
+        name: w.label,
+        position: new THREE.Vector3(w.x, w.y, w.z),
+        normal: new THREE.Vector3(w.nx, 0, w.nz),
+        width: size,
+        height: wallHeight,
+        rotation: { x: 0, y: w.rotY, z: 0 },
+        isFloor: false,
+        isCeiling: false,
+        isWebXR: false
+      });
+    });
   },
 
   createFloor: function(centerX, centerZ, floorSize) {
@@ -529,27 +524,12 @@ AFRAME.registerComponent("wall-debug", {
     
     floor.setAttribute("material", {
       color: this.data.floorColor,
-      opacity: this.data.floorOpacity,
+      opacity: 0,
       transparent: true,
       side: "double"
     });
     
-    floor.setAttribute("class", "scene-mesh wall-debug-surface collidable floor-surface arrow-collidable");
-    
-    // Forcer la mise à jour du mesh pour le raycaster
-    floor.addEventListener('loaded', () => {
-      if (floor.object3D && floor.getObject3D('mesh')) {
-        floor.getObject3D('mesh').updateMatrixWorld(true);
-      }
-    });
-    
-    const label = document.createElement("a-text");
-    label.setAttribute("value", "SOL");
-    label.setAttribute("color", "#FFFFFF");
-    label.setAttribute("align", "center");
-    label.setAttribute("scale", "2 2 2");
-    label.setAttribute("position", "0 0 0.02");
-    floor.appendChild(label);
+    floor.setAttribute("class", "room-boundary");
     
     this.el.sceneEl.appendChild(floor);
     this.walls.push(floor);
@@ -591,27 +571,12 @@ AFRAME.registerComponent("wall-debug", {
     
     ceiling.setAttribute("material", {
       color: this.data.ceilingColor,
-      opacity: this.data.ceilingOpacity,
+      opacity: 0,
       transparent: true,
       side: "double"
     });
     
-    ceiling.setAttribute("class", "scene-mesh wall-debug-surface collidable ceiling-surface arrow-collidable");
-    
-    // Forcer la mise à jour du mesh pour le raycaster
-    ceiling.addEventListener('loaded', () => {
-      if (ceiling.object3D && ceiling.getObject3D('mesh')) {
-        ceiling.getObject3D('mesh').updateMatrixWorld(true);
-      }
-    });
-    
-    const label = document.createElement("a-text");
-    label.setAttribute("value", "PLAFOND");
-    label.setAttribute("color", "#FFFFFF");
-    label.setAttribute("align", "center");
-    label.setAttribute("scale", "2 2 2");
-    label.setAttribute("position", "0 0 0.02");
-    ceiling.appendChild(label);
+    ceiling.setAttribute("class", "room-boundary");
     
     this.el.sceneEl.appendChild(ceiling);
     this.walls.push(ceiling);
