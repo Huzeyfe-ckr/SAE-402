@@ -14,6 +14,10 @@ export default defineConfig({
     minify: 'terser',
     cssCodeSplit: true,
     rollupOptions: {
+      input: {
+        main: './index.html',
+        game: './game.html'
+      },
       output: {
         manualChunks: undefined
       }

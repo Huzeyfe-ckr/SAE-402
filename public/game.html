@@ -1,0 +1,334 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script src="https://cdn.jsdelivr.net/gh/c-frame/aframe-extras@7.5.0/dist/aframe-extras.min.js"></script>
+    <title>SAE4.02 - Archery XR</title>
+    <style>
+      body,
+      html {
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+      }
+      a-scene {
+        background: transparent !important;
+      }
+      #xr-button {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        padding: 18px 36px;
+        font-size: 20px;
+        font-weight: 700;
+        font-family: "Georgia", serif;
+        letter-spacing: 1px;
+        background: linear-gradient(135deg, #2d1b0e 0%, #4a3728 100%);
+        color: #f4e4bc;
+        border: 3px solid #d4af37;
+        border-radius: 14px;
+        cursor: pointer;
+        z-index: 10000;
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.45), inset 0 0 14px rgba(0, 0, 0, 0.35);
+        transition: all 0.3s ease;
+      }
+      #xr-button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 12px 28px rgba(0, 0, 0, 0.55), inset 0 0 18px rgba(0, 0, 0, 0.35);
+      }
+      #xr-button:active {
+        transform: translateY(0);
+      }
+    </style>
+  </head>
+  <body>
+     <div id="landing-screen" class="landing-screen">
+      <div class="landing-card">
+        <div class="landing-title">Archery XR</div>
+        <div class="landing-subtitle">Archery challenge in extended reality</div>
+        <div class="landing-divider"></div>
+        <div class="landing-text">
+          Draw your bow, aim with precision, and make your legend.
+        </div>
+      </div>
+    </div>
+    <button id="xr-button">🥽 ENTER XR</button>
+    
+      <!-- State management with aframe-state-component -->
+    <a-scene
+      state="score: 0; gameStarted: false"
+      webxr="referenceSpaceType: local; requiredFeatures: hand-tracking; optionalFeatures: hit-test,anchors,plane-detection,mesh-detection,layers,depth-sensing,dom-overlay;"
+      renderer="colorManagement: true; physicallyCorrectLights: true; alpha: true; antialias: true;"
+      vr-mode-ui="enabled: true"
+      embedded
+      game-manager
+      combo-system
+      wind="enabled: true; baseForce: 0.0005; forceVariation: 0.0008; visualEnabled: true; changeInterval: 4000; windDuration: 8000; calmDuration: 20000"
+    >
+      <!-- Assets loading -->
+      <a-assets>
+        <a-asset-item id="bow-model" src="/arc_sanslacorde.glb"></a-asset-item>
+        <a-asset-item id="target-model" src="/target.glb"></a-asset-item>
+        <a-asset-item id="target-fly" src="/target_fly.glb"></a-asset-item>        <a-asset-item id="bat" src="/Bat.glb"></a-asset-item>
+        <a-asset-item id="armabee" src="/Armabee.glb"></a-asset-item>        <a-asset-item id="arrow-model" src="/arrow.glb"></a-asset-item>
+        <audio
+          id="background-sound"
+          src="/son/song-background.mp3"
+          crossorigin="anonymous"
+          loop
+        ></audio>
+        <audio
+          id="hit-sound"
+          src="/son/arrow.wav"
+          crossorigin="anonymous"
+        ></audio>
+        <audio
+          id="shoot-sound"
+          src="/son/tir_arc.mp3"
+          crossorigin="anonymous"
+        ></audio>
+        <audio
+          id="arrow-fly-sound"
+          src="/son/Fleche.wav"
+          crossorigin="anonymous"
+        ></audio>
+        <audio
+          id="bow-creak-sound"
+          src="/son/grincement_fleche.mp3"
+          crossorigin="anonymous"
+        ></audio>
+        <!-- Error sound for invalid shot (ANTI-EXPLOIT) -->
+        <audio
+          id="error-sound"
+          src="/son/error.mp3"
+          crossorigin="anonymous"
+        ></audio>
+        <!-- Wind sound (WIND PHYSICS) -->
+        <audio
+          id="wind-sound"
+          src="/son/wind.mp3"
+          crossorigin="anonymous"
+          loop
+        ></audio>
+        <!-- Combo sounds -->
+        <audio
+          id="combo-double-sound"
+          src="/son/combo-double.wav"
+          crossorigin="anonymous"
+        ></audio>
+        <audio
+          id="combo-triple-sound"
+          src="/son/combo-triple.wav"
+          crossorigin="anonymous"
+        ></audio>
+        <audio
+          id="combo-quad-sound"
+          src="/son/combo-quad.wav"
+          crossorigin="anonymous"
+        ></audio>
+        <audio
+          id="combo-penta-sound"
+          src="/son/combo-penta.wav"
+          crossorigin="anonymous"
+        ></audio>
+      </a-assets>
+
+        <!-- Lights to illuminate AR objects -->
+      <a-entity light="type: ambient; color: #FFF; intensity: 1.0"></a-entity>
+      <a-entity
+        light="type: directional; color: #FFF; intensity: 0.8"
+        position="-0.5 1 1"
+      ></a-entity>
+
+        <!-- Scene Mesh Handler for WebXR -->
+      <a-entity scene-mesh-handler></a-entity>
+
+      <!-- Wall Debug - WebXR Room Capture + Manual fallback
+           useRoomCapture: true = automatically detects real walls
+           alignToCamera: true = aligns walls with the direction you look
+           manualRotation: manual angle adjustment (ex: 30 to rotate 30°)
+           TIP: Look towards a real wall before entering VR for good alignment -->
+      <a-entity wall-debug="enabled: true; wallColor: #0066FF; wallOpacity: 0; floorColor: #FF0000; floorOpacity: 0; ceilingColor: #00FF00; floorY: -0.5; ceilingOpacity: 0; roomSize: 2.5; wallHeight: 3.5; useRoomCapture: true; detectionTimeout: 5000; alignToCamera: true; manualRotation: 0"></a-entity>
+
+      <!-- Surface Detector for spawn -->
+      <a-entity surface-detector></a-entity>
+
+      <!-- WebXR Anchor Manager -->
+      <a-entity webxr-anchor-manager></a-entity>
+
+      <!-- Initial scan room -->
+      <a-entity room-scanner></a-entity>
+
+      <!-- Floating VR menu (instructions + play button) -->
+      <a-entity vr-menu></a-entity>
+
+      <!-- Target with behavior -->
+        <a-entity gltf-model="#target-fly" scale="0.1 0.1 0.1" animation-mixer="clip: metarig|Fly; loop: repeat; timeScale: 1" target-behavior="points: 10; hp: 1; movable: true"></a-entity>
+      
+
+      <!-- Static target -->
+      <a-entity
+        id="target-2"
+        position="-2 1.5 -6"
+        target-behavior="points: 20; hp: 2; movable: false"
+      >
+        <a-entity gltf-model="#target-fly" scale="0.1 0.1 0.1" animation-mixer="clip: metarig|Fly; loop: repeat; timeScale: 1"></a-entity>
+      </a-entity>
+
+      <!-- Camera with VR controls -->
+      <a-entity id="rig" position="0 1.6 0" bow-draw-system>
+        <!-- Camera with HUD Score -->
+        <a-camera score-hud></a-camera>
+
+        <a-entity id="leftHand" 
+          meta-touch-controls="hand: left"
+          bow-string="rotation: 0 90 90; topAnchor: 0.12 0.59 0; bottomAnchor: 0.12 -0.59 0; stringWidth: 0.001"
+          raycaster="objects: .clickable; far: 10">
+          <a-entity gltf-model="#bow-model" scale="0.25 0.25 0.25" rotation="0  90 90" position="0 0 0"></a-entity>
+        </a-entity>
+        
+
+        <a-entity
+          id="rightHand"
+          meta-touch-controls="hand: right"
+          raycaster="objects: .clickable; far: 10">
+        </a-entity>
+      </a-entity>
+
+      <!-- VR button to enter immersive mode -->
+      <!-- <a-entity position="0 2 -3" class="interactive" raycaster="objects: .interactive" cursor="rayOrigin: mouse">
+        <a-box position="0 0 0" rotation="0 45 0" color="#4CC3D9" 
+               animation="property: rotation; to: 0 405 0; loop: true; dur: 10000"></a-box>
+        <a-text value="Click to start" position="0 0.6 0" align="center" color="#000" width="4"></a-text>
+      </a-entity> -->
+
+      <!-- Instructions text -->
+      <!-- <a-text value="SAE 4.02 - Archery XR\nPress VR for immersive mode" 
+              position="0 2.5 -4" align="center" color="#FFF" width="6"></a-text> -->
+    </a-scene>
+
+    <script type="module" src="/src/main.js"></script>
+
+    <script>
+      document.addEventListener("DOMContentLoaded", () => {
+        const xrButton = document.getElementById("xr-button");
+        const scene = document.querySelector("a-scene");
+
+        xrButton.addEventListener("click", async () => {
+          try {
+            if (!navigator.xr) {
+              alert("WebXR not supported on this device");
+              return;
+            }
+
+            const arSupported =
+              await navigator.xr.isSessionSupported("immersive-ar");
+            const vrSupported =
+              await navigator.xr.isSessionSupported("immersive-vr");
+
+            if (arSupported) {
+              console.log("Launching AR mode...");
+              xrButton.textContent = "Launching AR...";
+              scene.enterAR();
+            } else if (vrSupported) {
+              console.log("Launching VR mode...");
+              xrButton.textContent = "Launching VR...";
+              scene.enterVR();
+            } else {
+              alert("No XR mode supported on this device");
+            }
+          } catch (error) {
+            console.error("XR Error:", error);
+            alert("Error launching XR: " + error.message);
+            xrButton.textContent = "🥽 ENTER XR";
+          }
+        });
+
+        scene.addEventListener("enter-vr", () => {
+          xrButton.style.display = "none";
+        });
+
+        scene.addEventListener("exit-vr", () => {
+          xrButton.style.display = "block";
+          xrButton.textContent = "🥽 ENTER XR";
+        });
+      });
+    </script>
+
+    <script>
+      let frameCount = 0;
+      let lastTime = Date.now();
+      const errorLog = [];
+
+      // Capture errors with line number
+      window.addEventListener("error", (e) => {
+        const line = e.lineno || "?";
+        const col = e.colno || "?";
+        const msg = `❌ Line ${line}:${col} - ${e.message}`;
+        errorLog.unshift(msg);
+        if (errorLog.length > 15) errorLog.pop();
+        updateErrorDisplay();
+        console.error(`[${line}:${col}]`, e.message, e);
+      });
+
+      // Capture promise rejections
+      window.addEventListener("unhandledrejection", (e) => {
+        const msg = `❌ Promise: ${e.reason}`;
+        errorLog.unshift(msg);
+        if (errorLog.length > 15) errorLog.pop();
+        updateErrorDisplay();
+        console.error("Unhandled rejection:", e);
+      });
+
+      // Monkey-patch console.error to also capture logged errors
+      const originalError = console.error;
+      console.error = function (...args) {
+        const msg = `❌ ${args.join(" ")}`;
+        errorLog.unshift(msg);
+        if (errorLog.length > 20) errorLog.pop();
+        updateErrorDisplay();
+        originalError.apply(console, args);
+      };
+
+      // Monkey-patch console.log to capture debug messages (birds, etc.)
+      const originalLog = console.log;
+      console.log = function (...args) {
+        const msg = args.join(" ");
+        // Filter to show only important messages (with emoji)
+        if (msg.includes('🦅') || msg.includes('🐦') || msg.includes('🔄') || msg.includes('🕐') || msg.includes('🎯') || msg.includes('✅') || msg.includes('🔵') || msg.includes('🏠')) {
+          errorLog.unshift(`📝 ${msg}`);
+          if (errorLog.length > 20) errorLog.pop();
+          updateErrorDisplay();
+        }
+        originalLog.apply(console, args);
+      };
+
+      function updateErrorDisplay() {
+        const errorList = document.getElementById("error-list");
+        if (errorList) {
+          errorList.innerHTML = errorLog.map((e) => `<div>${e}</div>`).join("");
+        }
+      }
+
+      function updateDebug() {
+        frameCount++;
+        const now = Date.now();
+        const elapsed = now - lastTime;
+
+        if (elapsed >= 1000) {
+          const fps = Math.round((frameCount * 1000) / elapsed);
+          const fpsEl = document.getElementById("debug-fps");
+          if (fpsEl) fpsEl.textContent = `FPS: ${fps}`;
+          frameCount = 0;
+          lastTime = now;
+        }
+
+        requestAnimationFrame(updateDebug);
+      }
+
+      updateDebug();
+    </script>
+  </body>
+</html>
