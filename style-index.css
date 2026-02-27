@@ -364,6 +364,48 @@ section {
   line-height: 1.6;
 }
 
+/* --- Code Examples Grid --- */
+.code-examples-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 2rem;
+  width: 100%;
+}
+
+.code-example-card {
+  background: linear-gradient(145deg, #1a1a1a, #252525);
+  padding: 20px;
+  border-radius: 15px;
+  border: 1px solid #333;
+  transition: all 0.3s;
+  text-align: center;
+}
+
+.code-example-card:hover {
+  border-color: var(--primary-gold);
+  transform: translateY(-5px);
+  box-shadow: 0 8px 20px rgba(212, 175, 55, 0.2);
+}
+
+.code-example-card h4 {
+  color: var(--primary-gold);
+  margin-top: 0;
+  margin-bottom: 15px;
+  font-size: 1.2rem;
+}
+
+.code-example-card img {
+  width: 100%;
+  height: auto;
+  border-radius: 10px;
+  border: 1px solid #444;
+  transition: all 0.3s;
+}
+
+.code-example-card img:hover {
+  border-color: var(--primary-gold);
+  box-shadow: 0 4px 15px rgba(212, 175, 55, 0.3);
+}
 
 
 
@@ -573,6 +615,10 @@ footer {
 
   .card_tech,
   .card_features {
+    grid-template-columns: 1fr;
+  }
+
+  .code-examples-grid {
     grid-template-columns: 1fr;
   }
 
